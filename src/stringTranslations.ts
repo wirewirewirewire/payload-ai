@@ -1,9 +1,11 @@
-import { Block, CollectionConfig } from 'payload/types'
+import { Block, CollectionConfig, Field } from 'payload/types'
 
 import { admins } from './access/admins'
 import { adminsOrPublished } from './access/adminsOrPublished'
 import { anyone } from './access/anyone'
 import aiTranslate from './aiTranslate'
+import { Translator } from './components/Translator'
+import { createTranslatorHandler } from './handleTranslate'
 
 const TextAreaBlock: Block = {
   slug: 'translation-textarea',
@@ -35,8 +37,7 @@ const stringTranslations: CollectionConfig = {
         collection: { slug: 'translations' },
         collectionOptions: { fields: ['content'] },
       }),
-      async req => {
-        console.log('create-missing', req.body)
+      async (req: any) => {
         /*if (req.user && req.user.role === 'admin') {
         return req
       }
@@ -59,7 +60,7 @@ const stringTranslations: CollectionConfig = {
       path: '/create-missing',
       //path: '/:id/tracking',
       method: 'post',
-      handler: async (req, res, next) => {
+      handler: async (req: any, res: any, next: any) => {
         const posts = await req.payload.find({
           collection: 'translations',
           where: {
@@ -79,7 +80,7 @@ const stringTranslations: CollectionConfig = {
               namespace: req.body.namespace,
               translation: [
                 {
-                  original: req.body.content,
+                  content: req.body.content,
                   blockType: 'translation-textarea',
                 },
               ],
@@ -90,6 +91,17 @@ const stringTranslations: CollectionConfig = {
           //res.status(404).send({ error: 'not found' })
         }
       },
+    },
+    {
+      path: '/translate',
+      method: 'post',
+      handler: createTranslatorHandler({
+        collections: {
+          translations: {
+            fields: ['content'],
+          },
+        },
+      }),
     },
   ],
   fields: [
@@ -117,6 +129,16 @@ const stringTranslations: CollectionConfig = {
       maxRows: 1,
       blocks: [TextAreaBlock],
     },
+    {
+      name: 'translator',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: {
+          Field: Translator,
+        },
+      },
+    } as Field,
   ],
 }
 

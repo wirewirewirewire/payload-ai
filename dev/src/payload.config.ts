@@ -6,6 +6,7 @@ import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { webpackBundler } from '@payloadcms/bundler-webpack'
 import { slateEditor } from '@payloadcms/richtext-slate'
 import { aiTranslatorPlugin } from '../../src/index'
+import ExamplesWithVersions from './collections/ExamplesWithVersions'
 
 export default buildConfig({
   admin: {
@@ -28,9 +29,9 @@ export default buildConfig({
     },
   },
   editor: slateEditor({}),
-  collections: [Examples, Users],
+  collections: [Examples, ExamplesWithVersions, Users],
   localization: {
-    locales: ['en', 'es', 'de'],
+    locales: ['en', 'es', 'de', 'fr', 'it', 'ja'],
     defaultLocale: 'en',
     fallback: true,
   },
@@ -46,7 +47,9 @@ export default buildConfig({
       collections: {
         examples: {
           fields: ['stringText', 'richText'],
-          // adapter: theAdapterToUse, // see docs for the adapter you want to use
+        },
+        'examples-with-versions': {
+          fields: ['stringText', 'richText'],
         },
       },
     }),

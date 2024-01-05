@@ -21,7 +21,7 @@ export const aiTranslatorPlugin =
     // If you need to add a webpack alias, use this function to extend the webpack config
     const webpack = extendWebpackConfig(incomingConfig)
 
-    ;(config.collections = (config.collections || []).map(existingCollection => {
+    config.collections = (config.collections || []).map(existingCollection => {
       const collectionOptions = allCollectionOptions[existingCollection.slug]
 
       /*if (options?.adapter) {
@@ -55,17 +55,21 @@ export const aiTranslatorPlugin =
 
       return {
         ...existingCollection,
-        /* upload: {
-          ...(typeof existingCollection.upload === 'object' ? existingCollection.upload : {}),
-          handlers,
-          disableLocalStorage:
-            typeof options.disableLocalStorage === 'boolean' ? options.disableLocalStorage : true,
-        }, */
+
+        endpoints: [
+          ...(existingCollection.endpoints || []),
+          {
+            path: '/translate',
+            method: 'post',
+            handler: createTranslatorHandler(pluginOptions),
+          },
+        ],
+
         hooks: {
           ...(existingCollection.hooks || {}),
           afterChange: [
             ...(existingCollection.hooks?.afterChange || []),
-            aiTranslate({ /* adapter,*/ collectionOptions, collection: existingCollection }),
+            //  aiTranslate({ collectionOptions, collection: existingCollection }),
             // getBeforeChangeHook({ adapter, collection: existingCollection }),
           ],
         },
@@ -86,21 +90,22 @@ export const aiTranslatorPlugin =
       //}
 
       return existingCollection
-    })),
-      (config.admin = {
-        ...(config.admin || {}),
-        // If you extended the webpack config, add it back in here
-        // If you did not extend the webpack config, you can remove this line
-        webpack,
+    })
 
-        // Add additional admin config here
+    config.admin = {
+      ...(config.admin || {}),
+      // If you extended the webpack config, add it back in here
+      // If you did not extend the webpack config, you can remove this line
+      webpack,
 
-        components: {
-          ...(config.admin?.components || {}),
-          // Add additional admin components here
-          afterDashboard: [...(config.admin?.components?.afterDashboard || []), AfterDashboard],
-        },
-      })
+      // Add additional admin config here
+
+      components: {
+        ...(config.admin?.components || {}),
+        // Add additional admin components here
+        afterDashboard: [...(config.admin?.components?.afterDashboard || []), AfterDashboard],
+      },
+    }
 
     // If the plugin is disabled, return the config without modifying it
     // The order of this check is important, we still want any webpack extensions to be applied even if the plugin is disabled
@@ -108,22 +113,7 @@ export const aiTranslatorPlugin =
       return config
     }
 
-    config.collections = [
-      ...(config.collections || []),
-      // Add additional collections here
-      stringTranslations, // delete this line to remove the example collection
-    ]
-
-    config.endpoints = [
-      ...(config.endpoints || []),
-      /*{
-        path: '/ai-translator',
-        method: 'post',
-        root: true,
-        handler: createTranslatorHandler(translatorConfig),
-      },*/
-      // Add additional endpoints here
-    ]
+    config.collections = [...(config.collections || []), stringTranslations]
 
     config.globals = [
       ...(config.globals || []),

@@ -1,23 +1,25 @@
 import React from 'react'
 
 import { Button } from 'payload/components/elements'
+import { useDocumentInfo, useLocale } from 'payload/components/utilities'
 
 const baseClass = 'after-dashboard'
 
 export const Translator: React.FC = () => {
   const [isLoading, setIsLoading] = React.useState(false)
 
+  const locale = useLocale()
+  const documentInfo: any = useDocumentInfo()
   const translate = async () => {
+    setIsLoading(true)
     try {
-      const response = await fetch('/api/ai-translator', {
+      const response = await fetch(`/api/${documentInfo.collection.slug}/translate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          texts: 'sss', // valuesToTranslate.map(({ value }) => value),
-          // from: localeTranslateFrom,
-          // to: locale,
+          id: documentInfo.id,
         }),
       })
 
@@ -34,7 +36,7 @@ export const Translator: React.FC = () => {
     <div className={baseClass}>
       <Button disabled={isLoading} size="small" onClick={translate}>
         <span>Translate content from default language</span>
-        {/* {isLoading && <Loader size={'sm'} />}  */}
+        {isLoading && <>Loading...</>}
       </Button>
     </div>
   )

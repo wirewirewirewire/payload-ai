@@ -1,12 +1,77 @@
-# Payload Plugin Template
+# Payload AI
 
-Translate content to different languages using GPT.
+Translate content to different languages using OpenAI's GPT.
 
-Planned features:
+
+### How to install the plugin
+
+Install via npm:
+
+
+```
+npm install payload-ai
+```
+
+Or yarn:
+```
+yarn add payload-ai
+```
+
+To install the plugin, simply add it to your payload.config() in the Plugin array.
+
+```ts
+import payloadAi from 'payload-ai';
+
+export const config = buildConfig({
+  plugins: [
+    // You can pass options to the plugin
+    payloadAi({
+		  enabled: true,
+    }),
+  ]
+});
+```
+
+### Collection translation
+
+Add the `collections` where you want to enable the translation and the `fields`. It will translate each field (also nested fields) on every update of the default language.
+
+```jsx
+plugins: [
+  aiTranslatorPlugin({
+    enabled: true,
+    collections: {
+      examples: {
+        fields: ['stringText', 'richText'],
+      },
+    },
+  }),
+],
+```
+
+
+### String translation
+
+Use this to provide a [backend](https://github.com/i18next/i18next-http-backend) for [i18next](https://www.i18next.com) string translations.
+
+
+```jsx
+plugins: [
+  aiTranslatorPlugin({
+    enabled: true,
+    stringTranslation: {
+      enabled: true
+    }
+  }),
+],
+```
+
+### Generate SEO
+
+
+### Planned features
 
 - generate image alt text from GPT
-- generate by field
-- string translation using i18next
 - generate SEO Text
 - generate structured content
 - custom access control
@@ -20,26 +85,9 @@ To build your own Payload plugin, all you need is:
 * An understanding of the basic Payload concepts
 * And some JavaScript/Typescript experience
 
-## Background
 
-Here is a short recap on how to integrate plugins with Payload, to learn more visit the [plugin overview page](https://payloadcms.com/docs/plugins/overview).
 
-### How to install a plugin
 
-To install any plugin, simply add it to your payload.config() in the Plugin array.
-
-```ts
-import samplePlugin from 'sample-plugin';
-
-export const config = buildConfig({
-  plugins: [
-    // You can pass options to the plugin
-    samplePlugin({
-		  enabled: true,
-    }),
-  ]
-});
-```
 
 ### Initialization
 
