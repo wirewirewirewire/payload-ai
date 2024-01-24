@@ -9,6 +9,8 @@ import aiTranslate from './aiTranslate'
 import { createTranslatorHandler } from './handleTranslate'
 import { Translator } from './components/Translator'
 import { Field } from 'payload/types'
+import { GenerateMetadata } from './components/Metadata'
+import { generateText, generateTextHandler } from './generateText'
 
 type PluginType = (pluginOptions: PluginTypes) => Plugin
 
@@ -85,6 +87,16 @@ export const aiTranslatorPlugin =
               },
             },
           } as Field,
+          /*{
+            name: 'metadateGenerator',
+            type: 'ui',
+            admin: {
+              position: 'sidebar',
+              components: {
+                Field: GenerateMetadata,
+              },
+            },
+          } as Field,*/
         ],
       }
       //}
@@ -124,6 +136,15 @@ export const aiTranslatorPlugin =
       ...(config.hooks || {}),
       // Add additional hooks here
     }
+
+    config.endpoints = [
+      ...(config.endpoints || []),
+      {
+        path: '/generate-text',
+        method: 'post',
+        handler: generateTextHandler(pluginOptions),
+      },
+    ]
 
     config.onInit = async payload => {
       if (incomingConfig.onInit) await incomingConfig.onInit(payload)

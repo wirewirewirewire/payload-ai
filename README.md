@@ -36,19 +36,75 @@ export const config = buildConfig({
 
 Add the `collections` where you want to enable the translation and the `fields`. It will translate each field (also nested fields) on every update of the default language.
 
-```jsx
+```ts
 plugins: [
   aiTranslatorPlugin({
     enabled: true,
     collections: {
       examples: {
-        fields: ['stringText', 'richText'],
+        // prompts: [myCollectionPrompt]
+        fields: [
+          'stringText', 
+          'richText',
+          {
+            "fieldWithCustomPrompt": 
+              {prompt: myPromptFunction}
+          }
+        ],
       },
     },
   }),
 ],
 ```
 
+#### Use in hooks
+
+TODO: add documentation
+
+myCollectionPrompt = ({source}) => {
+
+  source()
+
+  return 
+}
+
+#### Custom prompts by Field
+
+Use the `prompt` function for each field to use a customized prompt. The function will allow you to use the following
+
+
+- `req`: Request
+- `doc` Document in languages
+-  `previousDoc` Old document (only available on Update)
+-  `targetDoc` The old target document
+- `collectionOptions`
+- `language`
+- translatorConfig
+  language: string,
+  sourceLanguage?: string,
+
+- targetField
+- sourceField
+
+
+```jsx
+customPrompt = ({sourceField}) => `Translate ${sourceField} to ${targetLanguage}.`
+```
+
+### Use with [payload-seo](https://payloadcms.com/docs/plugins/seo)
+
+```jsx
+
+
+import {generateTitle, generateDescription } from "payload-ai";
+
+seo({
+  collections: ['examples'],
+  // uploadsCollection: 'media',
+  generateTitle: generateTitle,
+  generateDescription: ({ doc }) => generateDescription,
+});
+```
 
 ### String translation
 

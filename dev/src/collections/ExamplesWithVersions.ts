@@ -4,15 +4,25 @@ import { CollectionConfig } from 'payload/types'
 const ExamplesWithVersions: CollectionConfig = {
   slug: 'examples-with-versions',
   admin: {
-    useAsTitle: 'someField',
+    useAsTitle: 'title',
   },
   versions: {
     drafts: true,
   },
   fields: [
     {
-      name: 'richText',
+      name: 'title',
       type: 'text',
+      localized: true,
+    },
+    {
+      name: 'longText',
+      type: 'code',
+      localized: true,
+    },
+    {
+      name: 'doNotAutoTranslate',
+      type: 'code',
       localized: true,
     },
   ],

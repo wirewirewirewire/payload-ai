@@ -4,9 +4,18 @@ import Users from './collections/Users'
 import Examples from './collections/Examples'
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { webpackBundler } from '@payloadcms/bundler-webpack'
-import { slateEditor } from '@payloadcms/richtext-slate'
-import { aiTranslatorPlugin } from '../../src/index'
+//import { slateEditor } from '@payloadcms/richtext-slate'
+
+import {
+  BlocksFeature,
+  BoldTextFeature,
+  LinkFeature,
+  lexicalEditor,
+} from '@payloadcms/richtext-lexical'
+import { aiTranslatorPlugin, generateDescription, generateTitle } from '../../src/index'
 import ExamplesWithVersions from './collections/ExamplesWithVersions'
+import seo from '@payloadcms/plugin-seo'
+import { TextBlock } from './blocks/TextBlock'
 
 export default buildConfig({
   admin: {
@@ -22,16 +31,45 @@ export default buildConfig({
             react: path.join(__dirname, '../node_modules/react'),
             'react-dom': path.join(__dirname, '../node_modules/react-dom'),
             payload: path.join(__dirname, '../node_modules/payload'),
+            // payload: path.join(__dirname, '../node_modules/payload'),
+            // '@faceless-ui/modal': path.join(__dirname, '../node_modules/@faceless-ui/modal'),
           },
         },
       }
       return newConfig
     },
   },
-  editor: slateEditor({}),
   collections: [Examples, ExamplesWithVersions, Users],
+  //editor: slateEditor({}),
+
+  editor: lexicalEditor({
+    features: ({ defaultFeatures }) => [
+      ...defaultFeatures,
+
+      LinkFeature({
+        // Example showing how to customize the built-in fields
+        // of the Link feature
+        fields: [
+          {
+            name: 'rel',
+            label: 'Rel Attribute',
+            type: 'select',
+            hasMany: true,
+            options: ['noopener', 'noreferrer', 'nofollow'],
+            admin: {
+              description:
+                'The rel attribute defines the relationship between a linked resource and the current document. This is a custom link field.',
+            },
+          },
+        ],
+      }),
+      BlocksFeature({
+        blocks: [TextBlock],
+      }),
+    ],
+  }),
   localization: {
-    locales: ['en', 'es', 'de', 'fr', 'it', 'ja'],
+    locales: ['en', 'de' /*'ja' 'es','fr', 'it', 'ja' */],
     defaultLocale: 'en',
     fallback: true,
   },
@@ -46,12 +84,18 @@ export default buildConfig({
       enabled: true,
       collections: {
         examples: {
-          fields: ['stringText', 'richText'],
+          fields: ['title', 'longText', 'jsonContent', 'contentRichText'],
         },
         'examples-with-versions': {
-          fields: ['stringText', 'richText'],
+          fields: ['title', 'longText', 'jsonContent'],
         },
       },
+    }),
+    seo({
+      collections: ['examples'],
+      // uploadsCollection: 'media',
+      generateTitle: generateTitle,
+      generateDescription: generateDescription,
     }),
   ],
   db: mongooseAdapter({

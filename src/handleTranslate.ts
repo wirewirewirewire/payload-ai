@@ -23,6 +23,7 @@ export const createTranslatorHandler = (translatorConfig: PluginTypes): PayloadH
       collectionOptions,
       collection: req.collection.config,
       onlyMissing: req.body.onlyMissing,
+      codes: req.body.codes,
     })
     /*if (translatorConfig.access) {
       const hasAccesses = await translatorConfig.access(req)

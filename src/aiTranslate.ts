@@ -28,69 +28,72 @@ export async function translateCollection({
   context,
   collectionOptions,
   onlyMissing,
+  codes,
 }: any) {
-  try {
-    if (
-      context.triggerAfterChange === false ||
-      req.locale !== req.payload.config.localization.defaultLocale
+  if (
+    context.triggerAfterChange === false ||
+    req.locale !== req.payload.config.localization.defaultLocale
+  )
+    return
+
+  const localCodes: string[] = req.payload.config.localization.localeCodes
+
+  console.log(
+    'filter codes',
+    localCodes.filter(
+      targetLanguage =>
+        targetLanguage !== req.payload.config.localization.defaultLocale &&
+        (!codes || codes.includes(targetLanguage)),
+    ),
+  )
+
+  const translationPromises = localCodes
+    .filter(
+      targetLanguage =>
+        targetLanguage !== req.payload.config.localization.defaultLocale &&
+        (!codes || codes.includes(targetLanguage)),
     )
-      return
-
-    const localCodes: string[] = req.payload.config.localization.localeCodes
-
-    const translationPromises = localCodes
-      .filter(targetLanguage => targetLanguage !== req.payload.config.localization.defaultLocale)
-      .map(async (tL: string) => {
-        const targetDoc = await req.payload.findByID({
-          collection: collection.slug,
-          id: doc.id,
-          locale: tL,
-          fallbackLocale: false,
-          limit: 0,
-          depth: 0,
-        })
-
-        const targetDocWithTranslation = await deepCompareTranslateAndMerge(
-          doc,
-          previousDoc,
-          targetDoc,
-          collectionOptions.fields,
-          tL,
-          previousDoc.id ? 'update' : 'create',
-          onlyMissing,
-        )
-
-        const { id, _status, updatedAt, createdAt, publishedDate, ...dataNew } =
-          targetDocWithTranslation
-
-        const updatedLanguage = await req.payload.update({
-          //req,
-          collection: collection.slug,
-          id: doc.id,
-          data: dataNew,
-          locale: tL,
-          limit: 1,
-          depth: 0,
-          context: {
-            triggerAfterChange: false,
-          },
-        })
-
-        return updatedLanguage
+    .map(async (tL: string) => {
+      const targetDoc = await req.payload.findByID({
+        collection: collection.slug,
+        id: doc.id,
+        locale: tL,
+        fallbackLocale: false,
+        limit: 0,
+        depth: 0,
       })
 
-    /*const results = []
-    for (const translationPromise of translationPromises) {
-      console.log('write now update!!!!')
+      const targetDocWithTranslation = await deepCompareTranslateAndMerge(
+        doc,
+        previousDoc,
+        targetDoc,
+        collectionOptions.fields,
+        tL,
+        previousDoc.id ? 'update' : 'create',
+        onlyMissing,
+        req.payload.config.localization.defaultLocale,
+      )
 
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const { id, _status, updatedAt, createdAt, publishedDate, ...dataNew } =
+        targetDocWithTranslation
 
-      const result = await translationPromise()
-      results.push(result)
-    } */
+      return { dataNew, tL }
+    })
 
-    const results = await Promise.all(translationPromises)
-  } catch (error) {
-    console.log('error while generating languages', error)
+  const translationResults = await Promise.all(translationPromises)
+
+  for (const translatedContent of translationResults) {
+    const updatedLanguage = await req.payload.update({
+      //req,
+      collection: collection.slug,
+      id: doc.id,
+      data: translatedContent.dataNew,
+      locale: translatedContent.tL,
+      limit: 1,
+      depth: 0,
+      context: {
+        triggerAfterChange: false,
+      },
+    })
   }
 }
