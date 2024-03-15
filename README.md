@@ -121,6 +121,28 @@ plugins: [
   }),
 ],
 ```
+#### Change model for string translation
+
+To update the model you can change the collection settings in the same way as with other collections.
+
+```jsx
+plugins: [
+  aiTranslatorPlugin({
+    enabled: true,
+    stringTranslation: {
+      enabled: true
+    }
+    collections: {
+      translations: {
+        settings: {
+          model: 'gpt-4',
+        },
+      }
+    }
+  }),
+],
+```
+
 
 ### Generate SEO
 
@@ -133,6 +155,7 @@ plugins: [
 - custom access control
 - custom overrides for translation
 - generate images based on input
+- generate Open Graph based on content
 
 Payload is built with a robust infrastructure intended to support Plugins with ease. This provides a simple, modular, and reusable way for developers to extend the core capabilities of Payload.
 

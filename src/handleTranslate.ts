@@ -1,4 +1,4 @@
-import aiTranslate, { translateCollection } from './aiTranslate'
+import { translateCollection } from './aiTranslate'
 import { PluginTypes } from './types'
 import { PayloadHandler } from 'payload/config'
 
@@ -7,13 +7,16 @@ export const createTranslatorHandler = (translatorConfig: PluginTypes): PayloadH
     const doc = await req.payload.findByID({
       collection: req.collection.config.slug,
       id: req.body.id,
+      locale: req.body.locale,
     })
 
     if (!doc) return res.status(404).send()
 
     const collectionOptions = translatorConfig.collections[req.collection.config.slug]
 
-    //  const translator = aiTranslate({ collectionOptions, collection: req.collection }, 'fallback')
+    const settings = req.body.settings || {}
+
+    //     const settings = pluginOptions.collections?.[collection.slug]?.settings
 
     const result = await translateCollection({
       doc,
@@ -24,6 +27,8 @@ export const createTranslatorHandler = (translatorConfig: PluginTypes): PayloadH
       collection: req.collection.config,
       onlyMissing: req.body.onlyMissing,
       codes: req.body.codes,
+      sourceLanguage: req.body.locale,
+      settings: { ...settings },
     })
     /*if (translatorConfig.access) {
       const hasAccesses = await translatorConfig.access(req)

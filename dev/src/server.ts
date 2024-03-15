@@ -21,8 +21,6 @@ export const start = async (args?: Partial<InitOptions>) => {
     ...(args || {}),
   })
 
-  // Add your own express routes here
-
   app.listen(3000)
 }
 

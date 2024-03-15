@@ -89,6 +89,11 @@ export default buildConfig({
         'examples-with-versions': {
           fields: ['title', 'longText', 'jsonContent'],
         },
+        translations: {
+          settings: {
+            model: 'gpt-4',
+          },
+        },
       },
     }),
     seo({

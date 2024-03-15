@@ -52,6 +52,10 @@ function messagesWithJsonLexical({ sourceLanguage, text, language }: any) {
   ]
 }
 
+function promptDefault({ messages }: any): any {
+  return messages
+}
+
 function generateUniqueKey(path: any) {
   return path.join('.')
 }
@@ -94,13 +98,22 @@ function reapplyText(
   }
 }
 
-export async function translateTextOrObject(
-  text: any,
-  language: string,
-  sourceLanguage?: string,
-  retryCount: number = 0,
-) {
-  function isTranslateNode(node, key) {
+interface TranslateTextOrObject {
+  text: any
+  language: string
+  sourceLanguage?: string
+  retryCount?: number
+  setting: any
+}
+
+export async function translateTextOrObject({
+  text,
+  language,
+  sourceLanguage,
+  retryCount = 0,
+  settings,
+}: any) {
+  function isTranslateNode(node: any, key: string) {
     return (key === 'text' && typeof node[key] === 'string') || key === 'name'
   }
 
@@ -115,22 +128,34 @@ export async function translateTextOrObject(
       extractAndCapitalizeText(text.root, ['root'], textMap, isTranslateNode)
     }
 
-    console.log('textMap', JSON.stringify(text, null, 2))
+    const { promptFunc = promptDefault, namespace, ...restSettings }: any = settings
+
+    const promptMessage: any =
+      typeof text === 'string' && text.length < 400
+        ? (messagesString({ sourceLanguage, text, language }) as any)
+        : typeof text === 'string'
+        ? (messagesMarkdown({ sourceLanguage, text, language }) as any)
+        : text?.root?.children
+        ? (messagesWithJsonLexical({ sourceLanguage, text: textMap, language }) as any)
+        : (messagesWithJson({ sourceLanguage, text, language }) as any)
+
+    const finalPrompt = promptFunc({
+      messages: promptMessage,
+      namespace,
+      sourceLanguage,
+      language,
+      settings,
+    })
+
     const chatCompletion = await openai.chat.completions.create({
       model: /* textAsString.length > 2000 ? 'gpt-3.5-turbo-16k' :*/ 'gpt-3.5-turbo-1106', /// 'gpt-3.5-turbo', // gpt-3.5-turbo-1106 // gpt-3.5-turbo-16k-0613
-      messages:
-        typeof text === 'string' && text.length < 400
-          ? (messagesString({ sourceLanguage, text, language }) as any)
-          : typeof text === 'string'
-          ? (messagesMarkdown({ sourceLanguage, text, language }) as any)
-          : text?.root?.children
-          ? (messagesWithJsonLexical({ sourceLanguage, text: textMap, language }) as any)
-          : (messagesWithJson({ sourceLanguage, text, language }) as any),
+      messages: finalPrompt,
       temperature: 0,
       max_tokens: 4096,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
+      ...restSettings,
     })
 
     console.log(
@@ -162,12 +187,14 @@ export async function translateTextOrObject(
       )
 
       await new Promise(resolve => setTimeout(resolve, error.headers['retry-after-ms']))
-      const newResult: any = await translateTextOrObject(
+      const newResult: any = await translateTextOrObject({
         text,
         language,
         sourceLanguage,
-        retryCount + 1,
-      )
+        retryCount: retryCount + 1,
+        settings,
+      })
+
       return newResult
     } else {
       console.log(

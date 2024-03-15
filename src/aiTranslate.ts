@@ -4,10 +4,16 @@ import { deepCompareTranslateAndMerge } from './deepCompareAndMerge'
 
 const aiTranslateHook =
   (
-    { collectionOptions, collection }: { collectionOptions: any; collection: object },
+    {
+      collectionOptions,
+      collection,
+      pluginOptions,
+    }: { collectionOptions: any; collection: object; pluginOptions: any },
     fallback?: string,
   ): CollectionAfterChangeHook =>
   async ({ doc, req, previousDoc, context, collection }) => {
+    const settings = pluginOptions.collections?.[collection.slug]?.settings
+
     return await translateCollection({
       doc,
       req,
@@ -15,6 +21,7 @@ const aiTranslateHook =
       context,
       collection,
       collectionOptions,
+      settings: { ...settings, namespace: doc.namespace },
     })
   }
 
@@ -29,31 +36,24 @@ export async function translateCollection({
   collectionOptions,
   onlyMissing,
   codes,
+  settings,
+  sourceLanguage,
 }: any) {
-  if (
-    context.triggerAfterChange === false ||
-    req.locale !== req.payload.config.localization.defaultLocale
-  )
-    return
+  const sourceLanguageI =
+    sourceLanguage || doc.sourceLanguage || req.payload.config.localization.defaultLocale
+
+  console.log('Translate', req.locale, sourceLanguageI)
+  if (context.triggerAfterChange === false || req.locale !== sourceLanguageI) return
 
   const localCodes: string[] = req.payload.config.localization.localeCodes
-
-  console.log(
-    'filter codes',
-    localCodes.filter(
-      targetLanguage =>
-        targetLanguage !== req.payload.config.localization.defaultLocale &&
-        (!codes || codes.includes(targetLanguage)),
-    ),
-  )
 
   const translationPromises = localCodes
     .filter(
       targetLanguage =>
-        targetLanguage !== req.payload.config.localization.defaultLocale &&
-        (!codes || codes.includes(targetLanguage)),
+        targetLanguage !== sourceLanguageI && (!codes || codes.includes(targetLanguage)),
     )
     .map(async (tL: string) => {
+      console.log('tL', tL, doc)
       const targetDoc = await req.payload.findByID({
         collection: collection.slug,
         id: doc.id,
@@ -71,7 +71,8 @@ export async function translateCollection({
         tL,
         previousDoc.id ? 'update' : 'create',
         onlyMissing,
-        req.payload.config.localization.defaultLocale,
+        sourceLanguageI,
+        settings,
       )
 
       const { id, _status, updatedAt, createdAt, publishedDate, ...dataNew } =

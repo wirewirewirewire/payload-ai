@@ -3,7 +3,8 @@ import React, { useCallback } from 'react'
 import { Button, Drawer, DrawerToggler } from 'payload/components/elements'
 import { useDocumentInfo, useLocale } from 'payload/components/utilities'
 import { useModal } from '@faceless-ui/modal'
-import './index.scss'
+import './Translator.scss'
+import { SelectInput, useForm } from 'payload/components/forms'
 
 const baseClass = 'after-dashboard'
 
@@ -46,23 +47,35 @@ export const DrawerTogglerAlt: any = ({
 
 export const Translator: React.FC = () => {
   const baseClass = 'ai-translator'
+
+  //const { fields, getDataByPath } = useForm()
+
   const [isLoading, setIsLoading] = React.useState(false)
+  const [selectedModel, setSelectedModel] = React.useState<string>('default')
 
   const locale = useLocale()
   const documentInfo: any = useDocumentInfo()
   const translate = async ({ codes }: any) => {
+    const settings = {
+      model: selectedModel === 'default' ? undefined : selectedModel,
+    }
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/${documentInfo.collection.slug}/translate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `/api/${documentInfo.collection.slug}/translate?locale=${locale.code}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: documentInfo.id,
+            locale: locale.code,
+            codes,
+            settings,
+          }),
         },
-        body: JSON.stringify({
-          id: documentInfo.id,
-          codes,
-        }),
-      })
+      )
 
       const translatedValues = await response.json()
 
@@ -87,23 +100,58 @@ export const Translator: React.FC = () => {
   /*
  <Button onClick={handleClick}>Results are loading...</Button>
  */
+
+  const options = [
+    {
+      label: 'Default',
+      value: 'default',
+    },
+    {
+      label: 'GPT-3.5 Turbo (1106)',
+      value: 'gpt-3.5-turbo-1106',
+    },
+    {
+      label: 'GPT-4 Turbo (Preview)',
+      value: 'gpt-4-turbo-preview',
+    },
+
+    {
+      label: 'GPT-4 (most expensive)',
+      value: 'gpt-4',
+    },
+  ]
   return (
     <div className={baseClass}>
       <DrawerToggler slug="ai-translator" className={`${baseClass}__drawer__toggler`}>
         Translator
       </DrawerToggler>
+
       <Drawer title="Translator" slug="ai-translator">
         {isLoading ? (
           <Button disabled={true}>Results are loading...</Button>
         ) : (
-          <div className={`${baseClass}__translation-buttons`}>
-            <Button disabled={isLoading} onClick={() => translate({})}>
-              <span>Translate content to all languages</span>
-            </Button>
-            <Button disabled={isLoading} onClick={() => translate({ codes: [locale.code] })}>
-              <span>Translate only {locale.label as string}</span>
-            </Button>
-          </div>
+          <>
+            <div>
+              <SelectInput
+                onChange={(e: any) => {
+                  setSelectedModel(e.value)
+                }}
+                name="selectedModel"
+                value={selectedModel}
+                path="model"
+                options={options}
+              />
+            </div>
+            <div>Translates from: {locale.code}</div>
+            <div className={`${baseClass}__translation-buttons`}>
+              <Button disabled={isLoading} onClick={() => translate({})}>
+                <span>Translate content to all languages</span>
+              </Button>
+              <Button disabled={isLoading} onClick={() => translate({ codes: [locale.code] })}>
+                <span>Translate only {locale.label as string}</span>
+              </Button>
+            </div>
+          </>
         )}
       </Drawer>
     </div>

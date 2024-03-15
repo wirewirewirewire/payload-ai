@@ -5,7 +5,6 @@ import type { PluginTypes } from './types'
 import { extendWebpackConfig } from './webpack'
 import AfterDashboard from './components/AfterDashboard'
 import stringTranslations from './stringTranslations'
-import aiTranslate from './aiTranslate'
 import { createTranslatorHandler } from './handleTranslate'
 import { Translator } from './components/Translator'
 import { Field } from 'payload/types'
@@ -66,7 +65,6 @@ export const aiTranslatorPlugin =
             handler: createTranslatorHandler(pluginOptions),
           },
         ],
-
         hooks: {
           ...(existingCollection.hooks || {}),
           afterChange: [
@@ -125,7 +123,7 @@ export const aiTranslatorPlugin =
       return config
     }
 
-    config.collections = [...(config.collections || []), stringTranslations]
+    config.collections = [...(config.collections || []), stringTranslations(pluginOptions)]
 
     config.globals = [
       ...(config.globals || []),

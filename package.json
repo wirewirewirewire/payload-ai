@@ -1,6 +1,6 @@
 {
   "name": "payload-ai",
-  "version": "0.0.5",
+  "version": "0.0.63",
   "homepage:": "https://polyxo.de",
   "repository": "git@github.com:payloadcms/payload-plugin-template.git",
   "description": "Payload AI tools",
@@ -15,12 +15,13 @@
     "template"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && yarn copyfiles",
     "test": "cd dev && yarn test",
     "lint": "eslint src",
     "lint:fix": "eslint --fix --ext .ts,.tsx src",
     "clean": "rimraf dist && rimraf dev/yarn.lock",
-    "prepublishOnly": "yarn clean && yarn build && cd dev"
+    "prepublishOnly": "yarn clean && yarn build && cd dev",
+    "copyfiles": "copyfiles -u 1 \"./src/**/*/*.scss\" dist"
   },
   "author": "robert@wirewire.de",
   "license": "MIT",
@@ -33,6 +34,7 @@
     "@types/jest": "^29.5.11",
     "@typescript-eslint/eslint-plugin": "5.12.1",
     "@typescript-eslint/parser": "5.12.1",
+    "copyfiles": "^2.4.1",
     "dotenv": "^8.2.0",
     "eslint": "^8.19.0",
     "eslint-config-airbnb-base": "^14.2.1",

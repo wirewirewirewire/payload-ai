@@ -17,6 +17,7 @@ export async function deepCompareTranslateAndMerge(
   action?: 'create' | 'update',
   onlyMissing?: boolean,
   sourceLanguage?: string,
+  settings?: any,
 ): Promise<CollectionObjType> {
   if (Array.isArray(newOriginalObj)) {
     return Promise.all(
@@ -30,6 +31,7 @@ export async function deepCompareTranslateAndMerge(
           action,
           onlyMissing,
           sourceLanguage,
+          settings,
         ),
       ),
     )
@@ -45,11 +47,12 @@ export async function deepCompareTranslateAndMerge(
             // Translate the text and merge it into the English object
 
             if (!onlyMissing || targetObj[prop] === undefined || targetObj[prop] === '') {
-              targetObj[prop] = await translateTextOrObject(
-                newOriginalObj[prop],
+              targetObj[prop] = await translateTextOrObject({
+                text: newOriginalObj[prop],
                 language,
                 sourceLanguage,
-              )
+                settings,
+              })
             } else {
               // targetObj[prop] = 'not translated'
             }
@@ -67,6 +70,7 @@ export async function deepCompareTranslateAndMerge(
             action,
             onlyMissing,
             sourceLanguage,
+            settings,
           )
         }
       }
