@@ -92,6 +92,18 @@ export default buildConfig({
         translations: {
           settings: {
             model: 'gpt-4',
+            promptFunc: ({ messages, namespace }) => {
+              console.log('promptFunc', messages, namespace)
+
+              return [
+                {
+                  role: 'system',
+                  content:
+                    'Important: Add a smily face at the end of the message to make the AI more friendly. 😊',
+                },
+                ...messages,
+              ]
+            },
           },
         },
       },

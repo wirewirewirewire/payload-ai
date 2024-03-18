@@ -1,10 +1,15 @@
 import OpenAI from 'openai'
+import ISO6391 from 'iso-639-1'
 
 function messagesMarkdown({ sourceLanguage, text, language }: any) {
   return [
     {
       role: 'system',
-      content: `You will be provided with markdown in the language with ISO-2-Code: "${sourceLanguage}", and your task is to translate it into the language with ISO-2-Code: "${language}". Only return the translated markdown (mdx) and keep the structure.`,
+      content: `You will be provided with markdown "${ISO6391.getName(
+        'sourceLanguage',
+      )}", and your task is to translate it into the language with ISO-2-Code: "${ISO6391.getName(
+        language,
+      )}". Only return the translated markdown (mdx) and keep the structure.`,
     },
     {
       role: 'user',
@@ -17,7 +22,11 @@ function messagesString({ sourceLanguage, text, language }: any) {
   return [
     {
       role: 'system',
-      content: `You will be provided with text in the language with ISO-2-Code: "${sourceLanguage}", and your task is to translate it into the language with ISO-2-Code: "${language}". Only return the translated text without anything else.`,
+      content: `You will be provided with text in "${ISO6391.getName(
+        sourceLanguage,
+      )}", and your task is to translate it into the language: "${ISO6391.getName(
+        language,
+      )}". Only return the translated text without anything else.`,
     },
     {
       role: 'user',
@@ -30,7 +39,11 @@ function messagesWithJson({ sourceLanguage, text, language }: any) {
   return [
     {
       role: 'system',
-      content: `You will be provided with lexical json structure in the language with ISO-2-Code: "${sourceLanguage}", and your task is to translate it into the language with ISO-2-Code: "${language}". Keep the json structure.`,
+      content: `You will be provided with lexical json structure in "${ISO6391.getName(
+        sourceLanguage,
+      )}", and your task is to translate it into the language "${ISO6391.getName(
+        language,
+      )}". Keep the json structure.`,
     },
     {
       role: 'user',
@@ -43,7 +56,11 @@ function messagesWithJsonLexical({ sourceLanguage, text, language }: any) {
   return [
     {
       role: 'system',
-      content: `You will be provided with a flat object structure with long keys in the language with ISO-2-Code: "${sourceLanguage}", and your task is to translate it into the language with ISO-2-Code: "${language}". Keep the flat json object structure with long dot seperated keys.`,
+      content: `You will be provided with a flat object structure with long keys in the language "${ISO6391.getName(
+        sourceLanguage,
+      )}", and your task is to translate it into the language "${ISO6391.getName(
+        language,
+      )}". Keep the flat json object structure with long dot seperated keys.`,
     },
     {
       role: 'user',
@@ -118,6 +135,11 @@ export async function translateTextOrObject({
   }
 
   const textAsString = typeof text === 'string' ? text : JSON.stringify(text, null, 2)
+
+  if (textAsString.length < 2) {
+    return text
+  }
+
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   })
@@ -130,14 +152,16 @@ export async function translateTextOrObject({
 
     const { promptFunc = promptDefault, namespace, ...restSettings }: any = settings
 
+    const languageIso = language === 'se' ? 'sv' : language
+
     const promptMessage: any =
       typeof text === 'string' && text.length < 400
-        ? (messagesString({ sourceLanguage, text, language }) as any)
+        ? (messagesString({ sourceLanguage, text, language: languageIso }) as any)
         : typeof text === 'string'
-        ? (messagesMarkdown({ sourceLanguage, text, language }) as any)
+        ? (messagesMarkdown({ sourceLanguage, text, language: languageIso }) as any)
         : text?.root?.children
-        ? (messagesWithJsonLexical({ sourceLanguage, text: textMap, language }) as any)
-        : (messagesWithJson({ sourceLanguage, text, language }) as any)
+        ? (messagesWithJsonLexical({ sourceLanguage, text: textMap, language: languageIso }) as any)
+        : (messagesWithJson({ sourceLanguage, text, language: languageIso }) as any)
 
     const finalPrompt = promptFunc({
       messages: promptMessage,

@@ -2,8 +2,9 @@ import { translateCollection } from './aiTranslate'
 import { PluginTypes } from './types'
 import { PayloadHandler } from 'payload/config'
 
-export const createTranslatorHandler = (translatorConfig: PluginTypes): PayloadHandler => {
+export const createTranslatorHandler = (pluginOptions: PluginTypes): PayloadHandler => {
   return async (req, res) => {
+    console.log('createTranslatorHandler', pluginOptions)
     const doc = await req.payload.findByID({
       collection: req.collection.config.slug,
       id: req.body.id,
@@ -12,11 +13,12 @@ export const createTranslatorHandler = (translatorConfig: PluginTypes): PayloadH
 
     if (!doc) return res.status(404).send()
 
-    const collectionOptions = translatorConfig.collections[req.collection.config.slug]
+    const collectionOptions = pluginOptions.collections[req.collection.config.slug]
 
-    const settings = req.body.settings || {}
-
-    //     const settings = pluginOptions.collections?.[collection.slug]?.settings
+    const settings = {
+      ...(req.body.settings || {}),
+      ...collectionOptions.settings,
+    }
 
     const result = await translateCollection({
       doc,

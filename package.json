@@ -1,6 +1,6 @@
 {
   "name": "payload-ai",
-  "version": "0.0.63",
+  "version": "0.0.66",
   "homepage:": "https://polyxo.de",
   "repository": "git@github.com:payloadcms/payload-plugin-template.git",
   "description": "Payload AI tools",
@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "@faceless-ui/modal": "2.0.1",
+    "iso-639-1": "^3.1.2",
     "openai": "^4.24.1",
     "webpack": "^5.89.0"
   }

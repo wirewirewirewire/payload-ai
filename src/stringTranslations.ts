@@ -105,8 +105,11 @@ const stringTranslations = (pluginOptions: any): CollectionConfig => {
         path: '/translate',
         method: 'post',
         handler: createTranslatorHandler({
+          ...pluginOptions,
           collections: {
+            ...pluginOptions.collections,
             translations: {
+              ...pluginOptions.collections?.translations,
               fields: ['content'],
             },
           },

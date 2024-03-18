@@ -21,7 +21,7 @@ const aiTranslateHook =
       context,
       collection,
       collectionOptions,
-      settings: { ...settings, namespace: doc.namespace },
+      settings,
     })
   }
 
@@ -72,7 +72,7 @@ export async function translateCollection({
         previousDoc.id ? 'update' : 'create',
         onlyMissing,
         sourceLanguageI,
-        settings,
+        { ...settings, namespace: doc?.namespace },
       )
 
       const { id, _status, updatedAt, createdAt, publishedDate, ...dataNew } =
