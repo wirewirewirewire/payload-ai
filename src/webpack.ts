@@ -18,6 +18,7 @@ export const extendWebpackConfig =
         ...(existingWebpackConfig.resolve || {}),
         alias: {
           ...(existingWebpackConfig.resolve?.alias ? existingWebpackConfig.resolve.alias : {}),
+          fs: path.resolve(__dirname, './fsMock.js'),
           // Add additional aliases here like so:
           [path.resolve(__dirname, './yourFileHere')]: mockModulePath,
         },

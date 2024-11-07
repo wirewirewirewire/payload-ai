@@ -2,6 +2,7 @@ import { buildConfig } from 'payload/config'
 import path from 'path'
 import Users from './collections/Users'
 import Examples from './collections/Examples'
+import { Media } from './collections/Media'
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { webpackBundler } from '@payloadcms/bundler-webpack'
 //import { slateEditor } from '@payloadcms/richtext-slate'
@@ -39,7 +40,7 @@ export default buildConfig({
       return newConfig
     },
   },
-  collections: [Examples, ExamplesWithVersions, Users],
+  collections: [Examples, ExamplesWithVersions, Users, Media],
   //editor: slateEditor({}),
 
   editor: lexicalEditor({
@@ -89,7 +90,11 @@ export default buildConfig({
         'examples-with-versions': {
           fields: ['title', 'longText', 'jsonContent'],
         },
+        media: {
+          fields: ['alt'],
+        },
         translations: {
+          access: () => true,
           settings: {
             model: 'gpt-4',
             promptFunc: ({ messages, namespace }) => {

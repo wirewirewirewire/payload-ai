@@ -1,10 +1,11 @@
 import React, { useCallback } from 'react'
 
 import { Button, Drawer, DrawerToggler } from 'payload/components/elements'
-import { useDocumentInfo, useLocale } from 'payload/components/utilities'
+import { useConfig, useDocumentInfo, useLocale } from 'payload/components/utilities'
 import { useModal } from '@faceless-ui/modal'
 import './Translator.scss'
 import { SelectInput, useForm } from 'payload/components/forms'
+import { Config } from 'payload/config'
 
 const baseClass = 'after-dashboard'
 
@@ -54,6 +55,11 @@ export const Translator: React.FC = () => {
   const [selectedModel, setSelectedModel] = React.useState<string>('default')
 
   const locale = useLocale()
+  const config: any = useConfig()
+
+  const [selectedSourceLocale, setSelectedSourceLocal] = React.useState<string>(
+    config.localization.defaultLocale,
+  )
   const documentInfo: any = useDocumentInfo()
   const translate = async ({ codes }: any) => {
     const settings = {
@@ -70,7 +76,7 @@ export const Translator: React.FC = () => {
           },
           body: JSON.stringify({
             id: documentInfo.id,
-            locale: locale.code,
+            locale: selectedSourceLocale,
             codes,
             settings,
           }),
@@ -107,6 +113,10 @@ export const Translator: React.FC = () => {
       value: 'default',
     },
     {
+      label: 'GPT-4o',
+      value: 'gpt-4o',
+    },
+    {
       label: 'GPT-3.5 Turbo (1106)',
       value: 'gpt-3.5-turbo-1106',
     },
@@ -120,6 +130,12 @@ export const Translator: React.FC = () => {
       value: 'gpt-4',
     },
   ]
+
+  const optionsLocales = config.localization.locales.map((locale: any) => ({
+    label: locale.label,
+    value: locale.code,
+  }))
+
   return (
     <div className={baseClass}>
       <DrawerToggler slug="ai-translator" className={`${baseClass}__drawer__toggler`}>
@@ -142,7 +158,18 @@ export const Translator: React.FC = () => {
                 options={options}
               />
             </div>
-            <div>Translates from: {locale.code}</div>
+            <div>
+              Translates from:
+              <SelectInput
+                onChange={(e: any) => {
+                  setSelectedSourceLocal(e.value)
+                }}
+                name="sourceLocale"
+                value={selectedSourceLocale}
+                path="sourceLocale"
+                options={optionsLocales}
+              />
+            </div>
             <div className={`${baseClass}__translation-buttons`}>
               <Button disabled={isLoading} onClick={() => translate({})}>
                 <span>Translate content to all languages</span>

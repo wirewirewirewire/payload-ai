@@ -1,10 +1,10 @@
+import { validateAccess } from './access/validateAccess'
 import { translateCollection } from './aiTranslate'
 import { PluginTypes } from './types'
 import { PayloadHandler } from 'payload/config'
 
 export const createTranslatorHandler = (pluginOptions: PluginTypes): PayloadHandler => {
   return async (req, res) => {
-    console.log('createTranslatorHandler', pluginOptions)
     const doc = await req.payload.findByID({
       collection: req.collection.config.slug,
       id: req.body.id,
@@ -14,6 +14,8 @@ export const createTranslatorHandler = (pluginOptions: PluginTypes): PayloadHand
     if (!doc) return res.status(404).send()
 
     const collectionOptions = pluginOptions.collections[req.collection.config.slug]
+
+    if (!validateAccess(req, res, pluginOptions)) return
 
     const settings = {
       ...(req.body.settings || {}),

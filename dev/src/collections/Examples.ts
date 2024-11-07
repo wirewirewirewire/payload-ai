@@ -7,6 +7,9 @@ const Examples: CollectionConfig = {
   admin: {
     useAsTitle: 'title',
   },
+  access: {
+    update: () => false,
+  },
   fields: [
     {
       name: 'title',

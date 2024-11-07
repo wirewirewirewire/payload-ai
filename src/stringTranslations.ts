@@ -6,6 +6,8 @@ import { anyone } from './access/anyone'
 import aiTranslate from './aiTranslate'
 import { Translator } from './components/Translator'
 import { createTranslatorHandler } from './handleTranslate'
+import { validateAccess } from './access/validateAccess'
+import { createMissingTranslatorHandler } from './handleMissingTranslate'
 
 const TextAreaBlock: Block = {
   slug: 'translation-textarea',
@@ -69,6 +71,7 @@ const stringTranslations = (pluginOptions: any): CollectionConfig => {
         //path: '/:id/tracking',
         method: 'post',
         handler: async (req: any, res: any, next: any) => {
+          if (!validateAccess(req, res, pluginOptions)) return
           const posts = await req.payload.find({
             collection: 'translations',
             where: {
@@ -105,6 +108,20 @@ const stringTranslations = (pluginOptions: any): CollectionConfig => {
         path: '/translate',
         method: 'post',
         handler: createTranslatorHandler({
+          ...pluginOptions,
+          collections: {
+            ...pluginOptions.collections,
+            translations: {
+              ...pluginOptions.collections?.translations,
+              fields: ['content'],
+            },
+          },
+        }),
+      },
+      {
+        path: '/translate-missing',
+        method: 'post',
+        handler: createMissingTranslatorHandler({
           ...pluginOptions,
           collections: {
             ...pluginOptions.collections,

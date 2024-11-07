@@ -1,14 +1,26 @@
 import OpenAI from 'openai'
 import ISO6391 from 'iso-639-1'
 
-function messagesMarkdown({ sourceLanguage, text, language }: any) {
+function isoToFullName(isoCode: string, settings: any) {
+  const foundLanguage = settings.localization.locales.find((item: any) => item.code === isoCode)
+  if (foundLanguage && foundLanguage.label.length > 2) {
+    return foundLanguage.label
+  }
+  if (ISO6391.getName(isoCode)) return ISO6391.getName(isoCode)
+
+  console.log('language not found')
+  return isoCode
+}
+function messagesMarkdown({ sourceLanguage, text, language, settings }: any) {
   return [
     {
       role: 'system',
-      content: `You will be provided with markdown "${ISO6391.getName(
-        'sourceLanguage',
-      )}", and your task is to translate it into the language with ISO-2-Code: "${ISO6391.getName(
+      content: `You will be provided with markdown in "${isoToFullName(
+        sourceLanguage,
+        settings,
+      )}", and your task is to translate it into the language: "${isoToFullName(
         language,
+        settings,
       )}". Only return the translated markdown (mdx) and keep the structure.`,
     },
     {
@@ -18,14 +30,16 @@ function messagesMarkdown({ sourceLanguage, text, language }: any) {
   ]
 }
 
-function messagesString({ sourceLanguage, text, language }: any) {
+function messagesString({ sourceLanguage, text, language, settings }: any) {
   return [
     {
       role: 'system',
-      content: `You will be provided with text in "${ISO6391.getName(
+      content: `You will be provided with text in "${isoToFullName(
         sourceLanguage,
-      )}", and your task is to translate it into the language: "${ISO6391.getName(
+        settings,
+      )}", and your task is to translate it into the language:"${isoToFullName(
         language,
+        settings,
       )}". Only return the translated text without anything else.`,
     },
     {
@@ -35,15 +49,17 @@ function messagesString({ sourceLanguage, text, language }: any) {
   ]
 }
 
-function messagesWithJson({ sourceLanguage, text, language }: any) {
+function messagesWithJson({ sourceLanguage, text, language, settings }: any) {
   return [
     {
       role: 'system',
-      content: `You will be provided with lexical json structure in "${ISO6391.getName(
+      content: `You will be provided with lexical json structure in "${isoToFullName(
         sourceLanguage,
-      )}", and your task is to translate it into the language "${ISO6391.getName(
+        settings,
+      )}", and your task is to translate it into the language "${isoToFullName(
         language,
-      )}". Keep the json structure.`,
+        settings,
+      )}". Keep the json structure. Make sure NOT to wrap your result in markdown.`,
     },
     {
       role: 'user',
@@ -52,15 +68,17 @@ function messagesWithJson({ sourceLanguage, text, language }: any) {
   ]
 }
 
-function messagesWithJsonLexical({ sourceLanguage, text, language }: any) {
+function messagesWithJsonLexical({ sourceLanguage, text, language, settings }: any) {
   return [
     {
       role: 'system',
-      content: `You will be provided with a flat object structure with long keys in the language "${ISO6391.getName(
+      content: `You will be provided with a flat object structure with long keys in the language "${isoToFullName(
         sourceLanguage,
-      )}", and your task is to translate it into the language "${ISO6391.getName(
+        settings,
+      )}", and your task is to translate it into the language "${isoToFullName(
         language,
-      )}". Keep the flat json object structure with long dot seperated keys.`,
+        settings,
+      )}". Keep the flat json object structure with long dot seperated keys. Make sure NOT to wrap your result in markdown.`,
     },
     {
       role: 'user',
@@ -130,6 +148,7 @@ export async function translateTextOrObject({
   retryCount = 0,
   settings,
 }: any) {
+  console.log('settings', settings)
   function isTranslateNode(node: any, key: string) {
     return (key === 'text' && typeof node[key] === 'string') || key === 'name'
   }
@@ -150,18 +169,22 @@ export async function translateTextOrObject({
       extractAndCapitalizeText(text.root, ['root'], textMap, isTranslateNode)
     }
 
-    const { promptFunc = promptDefault, namespace, ...restSettings }: any = settings
-
+    const { promptFunc = promptDefault, namespace, localization, ...restSettings }: any = settings
     const languageIso = language === 'se' ? 'sv' : language
 
     const promptMessage: any =
       typeof text === 'string' && text.length < 400
-        ? (messagesString({ sourceLanguage, text, language: languageIso }) as any)
+        ? (messagesString({ sourceLanguage, text, language: languageIso, settings }) as any)
         : typeof text === 'string'
-        ? (messagesMarkdown({ sourceLanguage, text, language: languageIso }) as any)
+        ? (messagesMarkdown({ sourceLanguage, text, language: languageIso, settings }) as any)
         : text?.root?.children
-        ? (messagesWithJsonLexical({ sourceLanguage, text: textMap, language: languageIso }) as any)
-        : (messagesWithJson({ sourceLanguage, text, language: languageIso }) as any)
+        ? (messagesWithJsonLexical({
+            sourceLanguage,
+            text: textMap,
+            language: languageIso,
+            settings,
+          }) as any)
+        : (messagesWithJson({ sourceLanguage, text, language: languageIso, settings }) as any)
 
     const finalPrompt = promptFunc({
       messages: promptMessage,
@@ -172,7 +195,7 @@ export async function translateTextOrObject({
     })
 
     const chatCompletion = await openai.chat.completions.create({
-      model: /* textAsString.length > 2000 ? 'gpt-3.5-turbo-16k' :*/ 'gpt-3.5-turbo-1106', /// 'gpt-3.5-turbo', // gpt-3.5-turbo-1106 // gpt-3.5-turbo-16k-0613
+      model: /* textAsString.length > 2000 ? 'gpt-3.5-turbo-16k' :*/ 'gpt-4o', /// 'gpt-3.5-turbo', // gpt-3.5-turbo-1106 // gpt-3.5-turbo-16k-0613
       messages: finalPrompt,
       temperature: 0,
       max_tokens: 4096,
@@ -182,13 +205,12 @@ export async function translateTextOrObject({
       ...restSettings,
     })
 
-    console.log(
-      'chatCompletion.choices[0].message.content',
-      chatCompletion.choices[0].message.content,
-    )
-
     if (text?.root?.children) {
       const newText = JSON.parse(JSON.stringify(text))
+      console.log(
+        'chatCompletion.choices[0].message.content',
+        chatCompletion.choices[0].message.content,
+      )
       reapplyText(
         newText.root,
         ['root'],

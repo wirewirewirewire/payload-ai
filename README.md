@@ -152,6 +152,29 @@ plugins: [
 ],
 ```
 
+### Access control
+
+By default the plugin will use the [update](https://payloadcms.com/docs/access-control/collections#update) access control of the collection.
+
+To overwrite that behaviour you can add `access` to the collections configuration.
+
+
+```jsx
+plugins: [
+  aiTranslatorPlugin({
+    enabled: true,
+    stringTranslation: {
+      enabled: true
+    }
+    collections: {
+      examples: {
+        access: () => true,
+      }
+    }
+  }),
+],
+```
+
 
 ### Planned features 🧭
 

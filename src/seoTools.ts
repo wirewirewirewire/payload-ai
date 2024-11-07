@@ -1,7 +1,7 @@
 export const generateTitle = async ({ doc, locale }: any) => {
   console.log('sourceLanguage', locale)
   const body = {
-    model: 'gpt-3.5-turbo-1106',
+    model: 'gpt-4o',
     messages: [
       {
         role: 'system',
@@ -38,7 +38,7 @@ Only return the title without any comment or quotes, not the rest of the blog po
 
 export const generateDescription = async ({ doc, locale }: any) => {
   const body = {
-    model: 'gpt-3.5-turbo-1106',
+    model: 'gpt-4o',
     messages: [
       {
         role: 'system',

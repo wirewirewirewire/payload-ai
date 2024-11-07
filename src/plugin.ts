@@ -10,6 +10,7 @@ import { Translator } from './components/Translator'
 import { Field } from 'payload/types'
 import { GenerateMetadata } from './components/Metadata'
 import { generateText, generateTextHandler } from './generateText'
+import aiCaptionHook from './aiCaption'
 
 type PluginType = (pluginOptions: PluginTypes) => Plugin
 
@@ -21,6 +22,35 @@ export const aiTranslatorPlugin =
 
     // If you need to add a webpack alias, use this function to extend the webpack config
     const webpack = extendWebpackConfig(incomingConfig)
+
+    console.log('pluginOptions', config.collections)
+
+    config.collections = (config.collections || []).map(existingCollection => {
+      console.log('existingCollection', existingCollection)
+
+      const collectionOptions = {}
+      if (existingCollection.slug !== 'media') return existingCollection
+
+      return {
+        ...existingCollection,
+
+        endpoints: [
+          ...(existingCollection.endpoints || []),
+          /* {
+            path: '/translate',
+            method: 'post',
+            handler: createTranslatorHandler(pluginOptions),
+          }, */
+        ],
+        hooks: {
+          ...(existingCollection.hooks || {}),
+          afterChange: [
+            ...(existingCollection.hooks?.afterChange || []),
+            aiCaptionHook({ collectionOptions, pluginOptions, collection: existingCollection }),
+          ],
+        },
+      }
+    })
 
     config.collections = (config.collections || []).map(existingCollection => {
       const collectionOptions = allCollectionOptions[existingCollection.slug]

@@ -1,6 +1,6 @@
 {
   "name": "payload-ai",
-  "version": "0.0.66",
+  "version": "0.0.71",
   "homepage:": "https://polyxo.de",
   "repository": "git@github.com:payloadcms/payload-plugin-template.git",
   "description": "Payload AI tools",
@@ -18,6 +18,7 @@
     "build": "tsc && yarn copyfiles",
     "test": "cd dev && yarn test",
     "lint": "eslint src",
+    "yalc:deploy": "yarn  build && yalc publish --push",
     "lint:fix": "eslint --fix --ext .ts,.tsx src",
     "clean": "rimraf dist && rimraf dev/yarn.lock",
     "prepublishOnly": "yarn clean && yarn build && cd dev",
@@ -49,8 +50,10 @@
   },
   "dependencies": {
     "@faceless-ui/modal": "2.0.1",
+    "axios": "^1.6.8",
     "iso-639-1": "^3.1.2",
-    "openai": "^4.24.1",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.46.1",
     "webpack": "^5.89.0"
   }
 }

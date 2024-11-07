@@ -42,8 +42,7 @@ export async function translateCollection({
   const sourceLanguageI =
     sourceLanguage || doc.sourceLanguage || req.payload.config.localization.defaultLocale
 
-  console.log('Translate', req.locale, sourceLanguageI)
-  if (context.triggerAfterChange === false || req.locale !== sourceLanguageI) return
+  if (context.triggerAfterChange === false /* || req.locale !== sourceLanguageI */) return
 
   const localCodes: string[] = req.payload.config.localization.localeCodes
 
@@ -53,7 +52,6 @@ export async function translateCollection({
         targetLanguage !== sourceLanguageI && (!codes || codes.includes(targetLanguage)),
     )
     .map(async (tL: string) => {
-      console.log('tL', tL, doc)
       const targetDoc = await req.payload.findByID({
         collection: collection.slug,
         id: doc.id,
@@ -72,7 +70,7 @@ export async function translateCollection({
         previousDoc.id ? 'update' : 'create',
         onlyMissing,
         sourceLanguageI,
-        { ...settings, namespace: doc?.namespace },
+        { ...settings, namespace: doc?.namespace, localization: req.payload.config.localization },
       )
 
       const { id, _status, updatedAt, createdAt, publishedDate, ...dataNew } =
@@ -80,6 +78,8 @@ export async function translateCollection({
 
       return { dataNew, tL }
     })
+
+  console.log('translationPromises', translationPromises)
 
   const translationResults = await Promise.all(translationPromises)
 
