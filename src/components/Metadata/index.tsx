@@ -1,9 +1,6 @@
 import React from 'react'
 
-import { Button } from 'payload/components/elements'
-import { useDocumentInfo, useLocale } from 'payload/components/utilities'
-import { useAllFormFields, reduceFieldsToValues, useForm } from 'payload/components/forms'
-import { Fields } from 'payload/dist/admin/components/forms/Form/types'
+import { Button, useAllFormFields, useDocumentInfo, useForm, useLocale } from '@payloadcms/ui'
 
 const baseClass = 'after-dashboard'
 
@@ -18,13 +15,12 @@ export const GenerateMetadata: React.FC = () => {
   const translate = async () => {
     setIsLoading(true)
     try {
-      console.log('fields', fields)
       dispatchFields({
         type: 'REPLACE_STATE',
         state: {
           ...fields,
           title: { ...fields.title, value: 'new title here' },
-        } as Fields,
+        } as any,
       })
 
       setModified(true)

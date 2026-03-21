@@ -1,6 +1,196 @@
-.ai-translator__translation-buttons {
-  display: flex;
-  .btn {
-    margin-right: 1em;
+.ai-translator {
+  &__drawer__toggler {
+    margin-right: calc(var(--base) * 0.5);
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--base) * 0.75);
+  }
+
+  &__modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+  }
+
+  &__dialog {
+    position: relative;
+    width: min(680px, calc(100% - var(--gutter-h) * 2));
+    max-height: calc(100vh - var(--base) * 4);
+    overflow: auto;
+    padding: calc(var(--base) * 1.25);
+    border: 1px solid var(--theme-elevation-150);
+    border-radius: var(--style-radius-s);
+    background: var(--theme-elevation-0);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  &__description {
+    margin: 0;
+    color: var(--theme-elevation-700);
+  }
+
+  &__status-message {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--theme-elevation-800);
+  }
+
+  &__status-panel {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--base) * 0.5);
+    padding: calc(var(--base) * 0.75);
+    border: 1px solid var(--theme-elevation-100);
+    border-radius: var(--style-radius-s);
+    background: var(--theme-elevation-50);
+  }
+
+  &__status-list {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--base) * 0.5);
+  }
+
+  &__status-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: calc(var(--base) * 0.75);
+  }
+
+  &__status-language,
+  &__status-error {
+    margin: 0;
+  }
+
+  &__status-language {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--theme-elevation-900);
+  }
+
+  &__status-error {
+    margin-top: calc(var(--base) * 0.15);
+    font-size: 0.825rem;
+    color: var(--theme-error-500);
+  }
+
+  &__status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--base) * 0.25);
+    padding: calc(var(--base) * 0.2) calc(var(--base) * 0.45);
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &__status-pill--queued {
+    color: var(--theme-elevation-800);
+    background: var(--theme-elevation-100);
+  }
+
+  &__status-pill--processing {
+    color: var(--theme-warning-200);
+    background: color-mix(in srgb, var(--theme-warning-500) 35%, white);
+
+    .ai-translator__status-dot {
+      animation: ai-translator-pulse 1.1s ease-in-out infinite;
+      background: var(--theme-warning-500);
+    }
+  }
+
+  &__status-pill--completed {
+    color: var(--theme-success-200);
+    background: color-mix(in srgb, var(--theme-success-500) 35%, white);
+
+    .ai-translator__status-dot {
+      background: var(--theme-success-500);
+    }
+  }
+
+  &__status-pill--failed {
+    color: var(--theme-error-200);
+    background: color-mix(in srgb, var(--theme-error-500) 35%, white);
+
+    .ai-translator__status-dot {
+      background: var(--theme-error-500);
+    }
+  }
+
+  &__status-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--base) * 0.25);
+  }
+
+  &__label {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  &__radio-group {
+    display: grid;
+    gap: calc(var(--base) * 0.25);
+  }
+
+  &__radio-option {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--base) * 0.35);
+    font-size: 0.9rem;
+    color: var(--theme-elevation-900);
+    cursor: pointer;
+
+    input[type='radio'] {
+      margin: 0;
+      accent-color: var(--theme-success-500);
+    }
+  }
+
+  &__translation-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--base) * 0.5);
+  }
+
+  &__action,
+  &__loading {
+    width: fit-content;
+  }
+}
+
+@keyframes ai-translator-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(0.8);
+    opacity: 0.45;
   }
 }

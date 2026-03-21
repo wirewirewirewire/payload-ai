@@ -1,13 +1,20 @@
-import { Block, CollectionConfig, Field } from 'payload/types'
+import { Block, CollectionConfig } from 'payload'
 
 import { admins } from './access/admins'
 import { adminsOrPublished } from './access/adminsOrPublished'
 import { anyone } from './access/anyone'
 import aiTranslate from './aiTranslate'
-import { Translator } from './components/Translator'
 import { createTranslatorHandler } from './handleTranslate'
 import { validateAccess } from './access/validateAccess'
 import { createMissingTranslatorHandler } from './handleMissingTranslate'
+
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
 
 const TextAreaBlock: Block = {
   slug: 'translation-textarea',
@@ -70,37 +77,41 @@ const stringTranslations = (pluginOptions: any): CollectionConfig => {
         path: '/create-missing',
         //path: '/:id/tracking',
         method: 'post',
-        handler: async (req: any, res: any, next: any) => {
-          if (!validateAccess(req, res, pluginOptions)) return
+        handler: async (req: any) => {
+          const body = req.data || (req.json ? await req.json() : req.body || {})
+
+          const hasAccess = await validateAccess(req, pluginOptions)
+          if (!hasAccess) return jsonResponse({ error: 'not allowed' }, 403)
+
           const posts = await req.payload.find({
             collection: 'translations',
             where: {
               key: {
-                equals: req.body.key,
+                equals: body.key,
               },
             },
           })
 
           if (posts.docs.length > 0) {
-            res.status(200).send(posts.docs)
+            return jsonResponse(posts.docs)
           } else {
             const newPost = await req.payload.create({
               collection: 'translations',
-              locale: req.body.language,
+              locale: body.language,
               data: {
-                key: req.body.key,
-                namespace: req.body.namespace,
-                sourceLanguage: req.body.language,
+                key: body.key,
+                namespace: body.namespace,
+                sourceLanguage: body.language,
                 translation: [
                   {
-                    content: req.body.content,
+                    content: body.content,
                     blockType: 'translation-textarea',
                   },
                 ],
               },
             })
 
-            res.status(200).send(newPost)
+            return jsonResponse(newPost)
           }
         },
       },
@@ -165,16 +176,6 @@ const stringTranslations = (pluginOptions: any): CollectionConfig => {
         maxRows: 1,
         blocks: [TextAreaBlock],
       },
-      {
-        name: 'translator',
-        type: 'ui',
-        admin: {
-          position: 'sidebar',
-          components: {
-            Field: Translator,
-          },
-        },
-      } as Field,
     ],
   }
 }

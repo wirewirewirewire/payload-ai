@@ -37,6 +37,8 @@ export async function deepCompareTranslateAndMerge(
     )
   } else if (typeof newOriginalObj === 'object' && newOriginalObj !== null) {
     const promises = Object.keys(newOriginalObj).map(async prop => {
+      if (newOriginalObj?.noAutoTranslate) return
+
       if (newOriginalObj.hasOwnProperty(prop)) {
         if (fields.includes(prop) /*&& typeof newOriginalObj[prop] === 'string'*/) {
           if (
@@ -44,12 +46,6 @@ export async function deepCompareTranslateAndMerge(
             JSON.stringify(newOriginalObj[prop]) !== JSON.stringify(originalObj[prop]) ||
             action === 'create'
           ) {
-            console.log(
-              'onlyMissing',
-              newOriginalObj[prop],
-              onlyMissing,
-              !onlyMissing || targetObj[prop] === undefined || targetObj[prop] === '',
-            )
             // Translate the text and merge it into the target language object
             if (!onlyMissing || targetObj[prop] === undefined || targetObj[prop] === '') {
               targetObj[prop] = await translateTextOrObject({

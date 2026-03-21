@@ -33,7 +33,5 @@ ${text}
   })
   //image_url = response.data.data[0].url
 
-  console.log('Translated', language, content)
-
   return 'url' //image_url
 }

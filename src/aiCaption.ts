@@ -1,6 +1,6 @@
 import axios from 'axios'
 import OpenAI from 'openai'
-import type { CollectionAfterChangeHook, FieldHook } from 'payload/types'
+import type { CollectionAfterChangeHook, FieldHook } from 'payload'
 
 const aiCaptionHook =
   (
@@ -52,7 +52,6 @@ async function processImageRequest(url: string) {
     max_tokens: 1024,
   })
 
-  console.log('GPT Response:', responseGpt.choices[0].message.content)
   return responseGpt
 }
 
@@ -69,7 +68,7 @@ export async function translateCollection({
   sourceLanguage,
 }: any) {
   if (context.triggerAfterChange === false /* || req.locale !== sourceLanguageI */) return
-  console.log('upload doc', doc)
+
   if (!doc?.sizes?.tablet?.url) return
   const responseGpt = await processImageRequest(`http://localhost:3000${doc.sizes.tablet.url}`)
 

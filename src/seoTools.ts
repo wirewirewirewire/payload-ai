@@ -1,5 +1,4 @@
 export const generateTitle = async ({ doc, locale }: any) => {
-  console.log('sourceLanguage', locale)
   const body = {
     model: 'gpt-4o',
     messages: [

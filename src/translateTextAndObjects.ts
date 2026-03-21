@@ -8,7 +8,6 @@ function isoToFullName(isoCode: string, settings: any) {
   }
   if (ISO6391.getName(isoCode)) return ISO6391.getName(isoCode)
 
-  console.log('language not found')
   return isoCode
 }
 function messagesMarkdown({ sourceLanguage, text, language, settings }: any) {
@@ -91,6 +90,28 @@ function promptDefault({ messages }: any): any {
   return messages
 }
 
+function getMaxOutputTokensForModel(model: string) {
+  const normalizedModel = model.toLowerCase()
+
+  if (/^gpt-5(?:[.-]|$)/i.test(normalizedModel)) {
+    return 12800 //128000
+  }
+
+  if (/^o[1-9](?:[.-]|$)/i.test(normalizedModel)) {
+    return 20000 // 100000
+  }
+
+  if (/^gpt-4\.1(?:[.-]|$)/i.test(normalizedModel)) {
+    return 32768
+  }
+
+  if (/^(?:gpt-4o|chatgpt-4o)(?:[.-]|$)/i.test(normalizedModel)) {
+    return 16384
+  }
+
+  return 4096
+}
+
 function generateUniqueKey(path: any) {
   return path.join('.')
 }
@@ -148,7 +169,6 @@ export async function translateTextOrObject({
   retryCount = 0,
   settings,
 }: any) {
-  console.log('settings', settings)
   function isTranslateNode(node: any, key: string) {
     return (key === 'text' && typeof node[key] === 'string') || key === 'name'
   }
@@ -194,23 +214,57 @@ export async function translateTextOrObject({
       settings,
     })
 
+    const model = restSettings.model || 'gpt-4o'
+    const usesCompletionTokens = /^(gpt-5|o[1-9])/i.test(model)
+    const modelMaxOutputTokens = getMaxOutputTokensForModel(model)
+    const {
+      max_tokens: maxTokensFromSettings,
+      max_completion_tokens: maxCompletionTokensFromSettings,
+      temperature: temperatureFromSettings,
+      top_p: topPFromSettings,
+      frequency_penalty: frequencyPenaltyFromSettings,
+      presence_penalty: presencePenaltyFromSettings,
+      ...restCompletionSettings
+    } = restSettings
+
     const chatCompletion = await openai.chat.completions.create({
-      model: /* textAsString.length > 2000 ? 'gpt-3.5-turbo-16k' :*/ 'gpt-4o', /// 'gpt-3.5-turbo', // gpt-3.5-turbo-1106 // gpt-3.5-turbo-16k-0613
+      model, // default remains gpt-4o unless overridden via settings.model
       messages: finalPrompt,
-      temperature: 0,
-      max_tokens: 4096,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
-      ...restSettings,
+      ...(!usesCompletionTokens
+        ? {
+            temperature: temperatureFromSettings ?? 0,
+            top_p: topPFromSettings ?? 1,
+            frequency_penalty: frequencyPenaltyFromSettings ?? 0,
+            presence_penalty: presencePenaltyFromSettings ?? 0,
+          }
+        : {}),
+      ...(usesCompletionTokens
+        ? {
+            max_completion_tokens: Math.min(
+              Math.max(
+                maxCompletionTokensFromSettings || 0,
+                maxTokensFromSettings || 0,
+                modelMaxOutputTokens,
+              ),
+              modelMaxOutputTokens,
+            ),
+          }
+        : {
+            max_tokens: Math.min(
+              Math.max(
+                maxTokensFromSettings || 0,
+                maxCompletionTokensFromSettings || 0,
+                modelMaxOutputTokens,
+              ),
+              modelMaxOutputTokens,
+            ),
+          }),
+      ...restCompletionSettings,
     })
 
     if (text?.root?.children) {
       const newText = JSON.parse(JSON.stringify(text))
-      console.log(
-        'chatCompletion.choices[0].message.content',
-        chatCompletion.choices[0].message.content,
-      )
+
       reapplyText(
         newText.root,
         ['root'],

@@ -1,7 +1,15 @@
 import OpenAI from 'openai'
 import { PluginTypes } from './types'
-import { PayloadHandler } from 'payload/config'
+import { PayloadHandler } from 'payload'
 import { validateAccess } from './access/validateAccess'
+
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
 
 export async function generateText(body: OpenAI.Chat.ChatCompletionCreateParams) {
   const openai = new OpenAI({
@@ -19,9 +27,14 @@ export async function generateText(body: OpenAI.Chat.ChatCompletionCreateParams)
 }
 
 export const generateTextHandler = (pluginOptions: PluginTypes): PayloadHandler => {
-  return async (req, res) => {
-    if (!validateAccess(req, res, pluginOptions)) return
-    const result = await generateText(req.body)
-    res.json(result)
+  return async req => {
+    const hasAccess = await validateAccess(req, pluginOptions)
+    if (!hasAccess) return jsonResponse({ error: 'not allowed' }, 403)
+
+    const reqAny = req as any
+    const body = reqAny.data || (reqAny.json ? await reqAny.json() : reqAny.body || {})
+    const result = await generateText(body)
+
+    return jsonResponse(result)
   }
 }
