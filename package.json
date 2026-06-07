@@ -59,7 +59,12 @@
     "lint:fix": "eslint ./src --fix",
     "test": "pnpm test:int && pnpm test:e2e",
     "test:e2e": "playwright test",
-    "test:int": "vitest"
+    "test:int": "vitest",
+    "release": "npm run release:patch",
+    "release:current": "VERSION=$(node -p \"require('./package.json').version\") && git tag \"v$VERSION\" && git push origin main \"v$VERSION\" && gh release create \"v$VERSION\" --generate-notes",
+    "release:patch": "npm version patch && git push origin main --follow-tags && gh release create v$(node -p \"require('./package.json').version\") --generate-notes",
+    "release:minor": "npm version minor && git push origin main --follow-tags && gh release create v$(node -p \"require('./package.json').version\") --generate-notes",
+    "release:major": "npm version major && git push origin main --follow-tags && gh release create v$(node -p \"require('./package.json').version\") --generate-notes"
   },
   "author": "robert@wirewire.de",
   "license": "MIT",
