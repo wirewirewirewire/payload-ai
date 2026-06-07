@@ -1,20 +1,22 @@
-import { validateAccess } from './access/validateAccess'
-import { translateCollection } from './aiTranslate'
-import { PluginTypes } from './types'
-import { PayloadHandler } from 'payload'
+import type { PayloadHandler } from 'payload'
+
+import type { PluginTypes } from './types.js'
+
+import { validateAccess } from './access/validateAccess.js'
+import { translateCollection } from './aiTranslate.js'
 
 const encoder = new TextEncoder()
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
-    status,
     headers: {
       'Content-Type': 'application/json',
     },
+    status,
   })
 
 const getHeaderValue = (headers: unknown, name: string): string | undefined => {
-  if (!headers) return undefined
+  if (!headers) {return undefined}
 
   if (typeof (headers as Headers).get === 'function') {
     return (headers as Headers).get(name) || undefined
@@ -31,6 +33,7 @@ export const createTranslatorHandler = (pluginOptions: PluginTypes): PayloadHand
   return async req => {
     const reqAny = req as any
     const body = reqAny.data || (reqAny.json ? await reqAny.json() : reqAny.body || {})
+    const sourceLocale = body.sourceLocale || body.locale
     const acceptHeader = getHeaderValue(reqAny.headers, 'accept')
     const wantsProgressStream = Boolean(acceptHeader?.includes('application/x-ndjson'))
     const collectionSlug =
@@ -50,17 +53,19 @@ export const createTranslatorHandler = (pluginOptions: PluginTypes): PayloadHand
     }
 
     const doc = await req.payload.findByID({
-      collection: collectionSlug,
       id: body.id,
-      locale: body.locale,
+      collection: collectionSlug,
+      depth: 0,
+      fallbackLocale: false,
+      locale: sourceLocale,
     })
 
-    if (!doc) return new Response(null, { status: 404 })
+    if (!doc) {return new Response(null, { status: 404 })}
 
     const collectionOptions = pluginOptions.collections?.[collectionSlug] || {}
 
     const hasAccess = await validateAccess(req, pluginOptions)
-    if (!hasAccess) return jsonResponse({ error: 'not allowed' }, 403)
+    if (!hasAccess) {return jsonResponse({ error: 'not allowed' }, 403)}
 
     const settings = {
       ...(body.settings || {}),
@@ -79,19 +84,19 @@ export const createTranslatorHandler = (pluginOptions: PluginTypes): PayloadHand
               send({ type: 'started' })
 
               await translateCollection({
-                doc,
-                req,
-                previousDoc: {},
-                context: {},
-                collectionOptions,
-                collection: collectionConfig,
-                onlyMissing: body.onlyMissing,
                 codes: body.codes,
-                sourceLanguage: body.locale,
-                settings: { ...settings },
+                collection: collectionConfig,
+                collectionOptions,
+                context: {},
+                doc,
+                onlyMissing: body.onlyMissing,
                 onProgress: (progress: Record<string, unknown>) => {
                   send({ type: 'language', ...progress })
                 },
+                previousDoc: {},
+                req,
+                settings: { ...settings },
+                sourceLanguage: sourceLocale,
               })
 
               send({ type: 'complete' })
@@ -116,16 +121,16 @@ export const createTranslatorHandler = (pluginOptions: PluginTypes): PayloadHand
     }
 
     const result = await translateCollection({
-      doc,
-      req,
-      previousDoc: {},
-      context: {},
-      collectionOptions,
-      collection: collectionConfig,
-      onlyMissing: body.onlyMissing,
       codes: body.codes,
-      sourceLanguage: body.locale,
+      collection: collectionConfig,
+      collectionOptions,
+      context: {},
+      doc,
+      onlyMissing: body.onlyMissing,
+      previousDoc: {},
+      req,
       settings: { ...settings },
+      sourceLanguage: sourceLocale,
     })
     /*if (translatorConfig.access) {
       const hasAccesses = await translatorConfig.access(req)

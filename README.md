@@ -20,16 +20,17 @@ yarn add payload-ai
 To install the plugin, simply add it to your payload.config() in the Plugin array.
 
 ```ts
-import payloadAi from 'payload-ai';
+import { aiTranslatorPlugin } from 'payload-ai'
 
 export const config = buildConfig({
   plugins: [
     // You can pass options to the plugin
-    payloadAi({
-		  enabled: true,
+    aiTranslatorPlugin({
+      enabled: true,
+      collections: {},
     }),
-  ]
-});
+  ],
+})
 ```
 
 ### Collection translation 📦
@@ -52,6 +53,10 @@ plugins: [
 ],
 ```
 
+Set `enabled: false` to leave the Payload config unchanged. The plugin also works with
+`collections` omitted, but document translation controls are only added to collections that
+are listed in `collections`.
+
 
 #### Custom prompts by Field
 
@@ -63,23 +68,23 @@ plugins: [
     enabled: true,
     collections: {
       examples: {
-          settings: {
-            model: 'gpt-4',
-            promptFunc: ({ messages, namespace }) => {
-              return [
-                {
-                  role: 'system',
-                  content:
-                    'Important: Add a smily face at the end of the message to make the AI more friendly. 😊',
-                },
-                ...messages,
-              ]
-            },
+        settings: {
+          model: 'gpt-5-mini',
+          promptFunc: ({ messages, namespace }) => {
+            return [
+              {
+                role: 'system',
+                content:
+                  'Important: Add a smily face at the end of the message to make the AI more friendly. 😊',
+              },
+              ...messages,
+            ]
           },
         },
-    }
-  }
-]
+      },
+    },
+  }),
+],
 ```
 
 
@@ -125,8 +130,8 @@ plugins: [
   aiTranslatorPlugin({
     enabled: true,
     stringTranslation: {
-      enabled: true
-    }
+      enabled: true,
+    },
   }),
 ],
 ```
@@ -139,24 +144,46 @@ plugins: [
   aiTranslatorPlugin({
     enabled: true,
     stringTranslation: {
-      enabled: true
-    }
+      enabled: true,
+    },
     collections: {
       translations: {
         settings: {
-          model: 'gpt-4',
+          model: 'gpt-5-mini',
         },
-      }
-    }
+      },
+    },
   }),
 ],
 ```
+
+### Text generation endpoint
+
+When enabled, the plugin exposes `/api/generate-text`. The endpoint uses the plugin access
+checks, requires a logged-in user when no collection access rule applies, and only accepts
+an allow-list of models.
+
+```ts
+plugins: [
+  aiTranslatorPlugin({
+    enabled: true,
+    generateText: {
+      defaultModel: 'gpt-5-mini',
+      maxOutputTokens: 2048,
+      models: ['gpt-5-mini', 'gpt-4.1-mini'],
+    },
+  }),
+]
+```
+
+Set `generateText.enabled` to `false` if you do not need this endpoint.
 
 ### Access control
 
 By default the plugin will use the [update](https://payloadcms.com/docs/access-control/collections#update) access control of the collection.
 
-To overwrite that behaviour you can add `access` to the collections configuration.
+To overwrite that behaviour you can add `access` to the collections configuration. If no
+collection update access rule is available, plugin endpoints require an authenticated user.
 
 
 ```jsx
@@ -164,27 +191,17 @@ plugins: [
   aiTranslatorPlugin({
     enabled: true,
     stringTranslation: {
-      enabled: true
-    }
+      enabled: true,
+    },
     collections: {
       examples: {
         access: () => true,
-      }
-    }
+      },
+    },
   }),
 ],
 ```
 
-
-### Planned features 🧭
-
-- generate image alt text from GPT
-- generate SEO Text
-- generate structured content
-- custom access control
-- custom overrides for translation
-- generate images based on input
-- generate Open Graph based on content
 
 #### Use in hooks
 

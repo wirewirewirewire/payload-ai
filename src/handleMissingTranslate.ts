@@ -1,20 +1,23 @@
-import { validateAccess } from './access/validateAccess'
-import { translateCollection } from './aiTranslate'
-import { PluginTypes } from './types'
-import { PayloadHandler } from 'payload'
+import type { PayloadHandler } from 'payload'
+
+import type { PluginTypes } from './types.js'
+
+import { validateAccess } from './access/validateAccess.js'
+import { translateCollection } from './aiTranslate.js'
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
-    status,
     headers: {
       'Content-Type': 'application/json',
     },
+    status,
   })
 
 export const createMissingTranslatorHandler = (pluginOptions: PluginTypes): PayloadHandler => {
   return async req => {
     const reqAny = req as any
     const body = reqAny.data || (reqAny.json ? await reqAny.json() : reqAny.body || {})
+    const onlyMissing = body.onlyMissing !== false
     const collectionSlug =
       reqAny.collection?.config?.slug ||
       reqAny.routeParams?.collection ||
@@ -32,45 +35,84 @@ export const createMissingTranslatorHandler = (pluginOptions: PluginTypes): Payl
     }
 
     const hasAccess = await validateAccess(req, pluginOptions)
-    if (!hasAccess) return jsonResponse({ error: 'not allowed' }, 403)
+    if (!hasAccess) {return jsonResponse({ error: 'not allowed' }, 403)}
 
-    const allDocs = await req.payload.find({
-      collection: collectionSlug,
-      locale: body.locale,
-      limit: 10000,
-    })
+    const docs: any[] = []
+    const localizationConfig = req.payload.config?.localization
+    const sourceLocale =
+      body.locale ||
+      (localizationConfig && typeof localizationConfig === 'object'
+        ? localizationConfig.defaultLocale
+        : undefined)
+    let page = 1
+    let hasNextPage = true
 
-    if (!allDocs?.docs) return new Response(null, { status: 404 })
-
-    for (const singleDoc of allDocs.docs) {
-      const doc = await req.payload.findByID({
+    while (hasNextPage) {
+      const pageResult = await req.payload.find({
         collection: collectionSlug,
-        id: singleDoc.id,
-        locale: singleDoc.sourceLanguage || body.locale,
+        limit: 100,
+        locale: sourceLocale,
+        page,
       })
 
-      const collectionOptions = pluginOptions.collections?.[collectionSlug] || {}
-
-      const settings = {
-        ...(body.settings || {}),
-        ...(collectionOptions.settings || {}),
+      if (Array.isArray(pageResult?.docs)) {
+        docs.push(...pageResult.docs)
       }
 
-      const result = await translateCollection({
-        doc,
-        req,
-        previousDoc: {},
-        context: {},
-        collectionOptions,
-        collection: collectionConfig,
-        onlyMissing: body.onlyMissing,
-        codes: body.codes,
-        sourceLanguage: doc.sourceLanguage || body.locale,
-        settings: { ...settings },
-      })
+      hasNextPage = Boolean(pageResult?.hasNextPage)
+      page += 1
     }
 
-    const translated = { result: 'translated' }
+    if (!docs.length) {return jsonResponse({ docs: [], result: 'translated', totalDocs: 0 })}
+
+    const collectionOptions = pluginOptions.collections?.[collectionSlug] || {}
+    const settings = {
+      ...(body.settings || {}),
+      ...(collectionOptions.settings || {}),
+    }
+    const failures: Array<{ error: string; id: number | string }> = []
+    let processedDocs = 0
+
+    for (const singleDoc of docs) {
+      try {
+      const doc = await req.payload.findByID({
+        id: singleDoc.id,
+        collection: collectionSlug,
+        depth: 0,
+        fallbackLocale: false,
+        locale: singleDoc.sourceLanguage || sourceLocale,
+      })
+
+        await translateCollection({
+          codes: body.codes,
+          collection: collectionConfig,
+          collectionOptions,
+          context: {},
+          doc,
+          onlyMissing,
+          previousDoc: {},
+          req,
+          settings: { ...settings },
+          sourceLanguage: doc.sourceLanguage || sourceLocale,
+        })
+
+        processedDocs += 1
+      } catch (error: any) {
+        failures.push({
+          id: singleDoc.id,
+          error: error?.message || 'Translation failed',
+        })
+      }
+    }
+
+    const translated = {
+      failedDocs: failures.length,
+      failures,
+      onlyMissing,
+      processedDocs,
+      result: 'translated',
+      totalDocs: docs.length,
+    }
 
     return jsonResponse(translated)
   }

@@ -1,13 +1,15 @@
 'use client'
 
+import { Button, useDocumentInfo } from '@payloadcms/ui'
 import React, { useCallback } from 'react'
 
-import { Button, useDocumentInfo } from '@payloadcms/ui'
-import './Translator.scss'
+import { modelOptions } from '../../modelOptions.js'
+
+import './Translator.css'
 
 type LocaleShape = { code: string; label?: string }
 
-type LanguageStatus = 'queued' | 'processing' | 'completed' | 'failed'
+type LanguageStatus = 'completed' | 'failed' | 'processing' | 'queued'
 
 type LanguageStatusMap = Record<
   string,
@@ -30,22 +32,42 @@ const getTargetLocaleCodes = ({
     Array.isArray(codes) && codes.length ? codes : locales.map(locale => locale.code)
 
   return requestedCodes.filter(code => {
-    if (code === selectedSourceLocale) return false
+    if (code === selectedSourceLocale) {return false}
     return locales.some(locale => locale.code === code)
   })
 }
 
 const statusLabelMap: Record<LanguageStatus, string> = {
-  queued: 'Queued',
-  processing: 'Translating',
   completed: 'Done',
   failed: 'Failed',
+  processing: 'Translating',
+  queued: 'Queued',
+}
+
+const getLocaleFromURL = () => {
+  if (typeof window === 'undefined') {return undefined}
+  const url = new URL(window.location.href)
+  return url.searchParams.get('locale') || undefined
+}
+
+const getActiveLocaleCode = ({
+  defaultLocaleCode,
+  locales,
+}: {
+  defaultLocaleCode: string
+  locales: LocaleShape[]
+}) => {
+  const localeFromURL = getLocaleFromURL()
+
+  return localeFromURL && locales.some(locale => locale.code === localeFromURL)
+    ? localeFromURL
+    : defaultLocaleCode
 }
 
 type TranslatorProps = {
   localization?: {
     defaultLocale?: string
-    locales?: Array<string | LocaleShape>
+    locales?: Array<LocaleShape | string>
   }
 }
 
@@ -55,14 +77,8 @@ export const Translator: React.FC<TranslatorProps> = ({ localization }) => {
   const [isOpen, setIsOpen] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [languageStatuses, setLanguageStatuses] = React.useState<LanguageStatusMap>({})
-  const [statusMessage, setStatusMessage] = React.useState<string | null>(null)
+  const [statusMessage, setStatusMessage] = React.useState<null | string>(null)
   const [selectedModel, setSelectedModel] = React.useState<string>('default')
-
-  const activeLocaleFromURL = React.useMemo(() => {
-    if (typeof window === 'undefined') return undefined
-    const url = new URL(window.location.href)
-    return url.searchParams.get('locale') || undefined
-  }, [])
 
   const defaultLocaleCode = localization?.defaultLocale || 'en'
 
@@ -97,15 +113,15 @@ export const Translator: React.FC<TranslatorProps> = ({ localization }) => {
       : [{ code: defaultLocaleCode, label: defaultLocaleCode }]
   }, [defaultLocaleCode, localization?.locales])
 
-  const activeLocaleCode =
-    activeLocaleFromURL && locales.some(locale => locale.code === activeLocaleFromURL)
-      ? activeLocaleFromURL
-      : defaultLocaleCode
+  const activeLocaleCode = getActiveLocaleCode({
+    defaultLocaleCode,
+    locales,
+  })
 
   const fallbackLocaleLabel =
     locales.find(locale => locale.code === activeLocaleCode)?.label || activeLocaleCode
 
-  const [selectedSourceLocale, setSelectedSourceLocal] = React.useState<string>(activeLocaleCode)
+  const [selectedSourceLocale, setSelectedSourceLocale] = React.useState<string>(activeLocaleCode)
   const documentInfo: any = useDocumentInfo()
   const routeMatch =
     typeof window !== 'undefined'
@@ -128,43 +144,13 @@ export const Translator: React.FC<TranslatorProps> = ({ localization }) => {
     documentId !== 'create'
 
   const handleOpenTranslator = useCallback(() => {
+    setSelectedSourceLocale(getActiveLocaleCode({ defaultLocaleCode, locales }))
     setIsOpen(true)
-  }, [])
+  }, [defaultLocaleCode, locales])
 
   const handleCloseTranslator = useCallback(() => {
     setIsOpen(false)
   }, [])
-
-  const modelOptions = [
-    {
-      label: 'Default',
-      value: 'default',
-    },
-    {
-      label: 'GPT-5 Mini ($0.25 in / $2.00 out per 1M)',
-      value: 'gpt-5-mini',
-    },
-    {
-      label: 'GPT-4.1 Mini ($0.80 in / $3.20 out per 1M)',
-      value: 'gpt-4.1-mini',
-    },
-    {
-      label: 'o3 ($2.00 in / $8.00 out per 1M)',
-      value: 'o3',
-    },
-    {
-      label: 'GPT-3.5 Turbo (1106)',
-      value: 'gpt-3.5-turbo-1106',
-    },
-    {
-      label: 'GPT-4 Turbo (Preview)',
-      value: 'gpt-4-turbo-preview',
-    },
-    {
-      label: 'GPT-5 ($1.25 in / $10.00 out per 1M)',
-      value: 'gpt-5',
-    },
-  ]
 
   const sourceLocaleOptions = locales.map((locale: any) => ({
     label: locale.label,
@@ -219,19 +205,23 @@ export const Translator: React.FC<TranslatorProps> = ({ localization }) => {
     setIsLoading(true)
 
     try {
-      const response = await fetch(`/api/${collectionSlug}/translate?locale=${activeLocaleCode}`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/x-ndjson',
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `/api/${collectionSlug}/translate?locale=${encodeURIComponent(selectedSourceLocale)}`,
+        {
+          body: JSON.stringify({
+            id: documentId,
+            codes,
+            locale: selectedSourceLocale,
+            settings,
+            sourceLocale: selectedSourceLocale,
+          }),
+          headers: {
+            Accept: 'application/x-ndjson',
+            'Content-Type': 'application/json',
+          },
+          method: 'POST',
         },
-        body: JSON.stringify({
-          id: documentId,
-          locale: selectedSourceLocale,
-          codes,
-          settings,
-        }),
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`Translation request failed with status ${response.status}`)
@@ -256,14 +246,14 @@ export const Translator: React.FC<TranslatorProps> = ({ localization }) => {
         lines.forEach(line => {
           const trimmedLine = line.trim()
 
-          if (!trimmedLine) return
+          if (!trimmedLine) {return}
 
           const event = JSON.parse(trimmedLine) as {
             error?: string
             language?: string
             message?: string
             status?: LanguageStatus
-            type?: 'started' | 'language' | 'complete' | 'error'
+            type?: 'complete' | 'error' | 'language' | 'started'
           }
           const nextStatus = event.status
 
@@ -295,7 +285,7 @@ export const Translator: React.FC<TranslatorProps> = ({ localization }) => {
               language?: string
               message?: string
               status?: LanguageStatus
-              type?: 'started' | 'language' | 'complete' | 'error'
+              type?: 'complete' | 'error' | 'language' | 'started'
             }
             const nextStatus = event.status
 
@@ -343,11 +333,11 @@ export const Translator: React.FC<TranslatorProps> = ({ localization }) => {
       {statusMessage ? <p className={`${baseClass}__status-message`}>{statusMessage}</p> : null}
 
       {visibleLanguageStatuses.length ? (
-        <div className={`${baseClass}__status-panel`} aria-live="polite">
+        <div aria-live="polite" className={`${baseClass}__status-panel`}>
           <p className={`${baseClass}__label`}>Language status</p>
           <div className={`${baseClass}__status-list`}>
             {visibleLanguageStatuses.map(language => (
-              <div key={language.code} className={`${baseClass}__status-item`}>
+              <div className={`${baseClass}__status-item`} key={language.code}>
                 <div>
                   <p className={`${baseClass}__status-language`}>{language.label}</p>
                   {language.error ? (
@@ -368,15 +358,15 @@ export const Translator: React.FC<TranslatorProps> = ({ localization }) => {
 
       <div className={`${baseClass}__field`}>
         <p className={`${baseClass}__label`}>Model</p>
-        <div className={`${baseClass}__radio-group`} role="radiogroup" aria-label="Model">
+        <div aria-label="Model" className={`${baseClass}__radio-group`} role="radiogroup">
           {modelOptions.map(option => (
-            <label key={option.value} className={`${baseClass}__radio-option`}>
+            <label className={`${baseClass}__radio-option`} key={option.value}>
               <input
-                type="radio"
-                name="selectedModel"
-                value={option.value}
                 checked={selectedModel === option.value}
+                name="selectedModel"
                 onChange={() => setSelectedModel(option.value)}
+                type="radio"
+                value={option.value}
               />
               <span>{option.label}</span>
             </label>
@@ -386,15 +376,16 @@ export const Translator: React.FC<TranslatorProps> = ({ localization }) => {
 
       <div className={`${baseClass}__field`}>
         <p className={`${baseClass}__label`}>Source locale</p>
-        <div className={`${baseClass}__radio-group`} role="radiogroup" aria-label="Source locale">
+        <div aria-label="Source locale" className={`${baseClass}__radio-group`} role="radiogroup">
           {sourceLocaleOptions.map(option => (
-            <label key={option.value} className={`${baseClass}__radio-option`}>
+            <label className={`${baseClass}__radio-option`} key={option.value}>
               <input
-                type="radio"
-                name="sourceLocale"
-                value={option.value}
                 checked={selectedSourceLocale === option.value}
-                onChange={() => setSelectedSourceLocal(option.value)}
+                name="sourceLocale"
+                disabled={isLoading}
+                onChange={() => setSelectedSourceLocale(option.value)}
+                type="radio"
+                value={option.value}
               />
               <span>{option.label}</span>
             </label>
@@ -442,7 +433,7 @@ export const Translator: React.FC<TranslatorProps> = ({ localization }) => {
       </Button>
 
       {isOpen && (
-        <div className={`${baseClass}__modal`} role="dialog" aria-modal={true}>
+        <div aria-modal={true} className={`${baseClass}__modal`} role="dialog">
           <div className={`${baseClass}__backdrop`} onClick={handleCloseTranslator} />
           <div className={`${baseClass}__dialog`}>{translatorControls}</div>
         </div>

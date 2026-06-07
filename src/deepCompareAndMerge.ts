@@ -1,12 +1,11 @@
-import { translateTextOrObject } from './translateTextAndObjects'
+import { translateTextOrObject } from './translateTextAndObjects.js'
 
 interface CollectionObjType {
   [prop: string]: any // You can replace 'any' with a more specific type
 }
 
-let colllectionObj: CollectionObjType = {} // Assuming targetObj is initialized somewhere
-
-interface ReturnTypeExample {}
+const isEmptyTranslatableValue = (value: unknown) =>
+  value === undefined || value === null || (typeof value === 'string' && value.trim() === '')
 
 export async function deepCompareTranslateAndMerge(
   newOriginalObj: CollectionObjType,
@@ -20,7 +19,8 @@ export async function deepCompareTranslateAndMerge(
   settings?: any,
 ): Promise<CollectionObjType> {
   if (Array.isArray(newOriginalObj)) {
-    return Promise.all(
+    const targetArray = Array.isArray(targetObj) ? targetObj : []
+    const translatedItems = await Promise.all(
       newOriginalObj.map((item, index) =>
         deepCompareTranslateAndMerge(
           item,
@@ -35,11 +35,20 @@ export async function deepCompareTranslateAndMerge(
         ),
       ),
     )
-  } else if (typeof newOriginalObj === 'object' && newOriginalObj !== null) {
-    const promises = Object.keys(newOriginalObj).map(async prop => {
-      if (newOriginalObj?.noAutoTranslate) return
 
-      if (newOriginalObj.hasOwnProperty(prop)) {
+    translatedItems.forEach((item, index) => {
+      targetArray[index] = item
+    })
+
+    return targetArray
+  } else if (typeof newOriginalObj === 'object' && newOriginalObj !== null) {
+    const targetObject =
+      targetObj && typeof targetObj === 'object' && !Array.isArray(targetObj) ? targetObj : {}
+
+    if (newOriginalObj?.noAutoTranslate) {return targetObject}
+
+    const promises = Object.keys(newOriginalObj).map(async prop => {
+      if (Object.prototype.hasOwnProperty.call(newOriginalObj, prop)) {
         if (fields.includes(prop) /*&& typeof newOriginalObj[prop] === 'string'*/) {
           if (
             originalObj?.[prop] === undefined ||
@@ -47,12 +56,12 @@ export async function deepCompareTranslateAndMerge(
             action === 'create'
           ) {
             // Translate the text and merge it into the target language object
-            if (!onlyMissing || targetObj[prop] === undefined || targetObj[prop] === '') {
-              targetObj[prop] = await translateTextOrObject({
-                text: newOriginalObj[prop],
+            if (!onlyMissing || isEmptyTranslatableValue(targetObject[prop])) {
+              targetObject[prop] = await translateTextOrObject({
                 language,
-                sourceLanguage,
                 settings,
+                sourceLanguage,
+                text: newOriginalObj[prop],
               })
             } else {
               // targetObj[prop] = 'not translated'
@@ -60,12 +69,12 @@ export async function deepCompareTranslateAndMerge(
           }
         } else if (
           typeof newOriginalObj[prop] === 'object' &&
-          typeof targetObj[prop] === 'object'
+          newOriginalObj[prop] !== null
         ) {
-          targetObj[prop] = await deepCompareTranslateAndMerge(
+          targetObject[prop] = await deepCompareTranslateAndMerge(
             newOriginalObj[prop],
             originalObj?.[prop] || null,
-            targetObj[prop] || null,
+            targetObject[prop] || null,
             fields,
             language,
             action,
@@ -73,10 +82,14 @@ export async function deepCompareTranslateAndMerge(
             sourceLanguage,
             settings,
           )
+        } else if (prop === 'blockType' && targetObject[prop] === undefined) {
+          targetObject[prop] = newOriginalObj[prop]
         }
       }
     })
     await Promise.all(promises)
+
+    return targetObject
   }
   return targetObj
 }

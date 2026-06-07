@@ -1,4 +1,4 @@
-export { aiTranslatorPlugin } from './plugin'
-export type { PluginTypes } from './types'
+export { aiTranslatorPlugin } from './plugin.js'
+export { generateDescription, generateTitle } from './seoTools.js'
 
-export { generateTitle, generateDescription } from './seoTools'
+export type { PluginTypes } from './types.js'

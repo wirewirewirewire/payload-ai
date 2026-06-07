@@ -1,19 +1,22 @@
-import OpenAI from 'openai'
 import ISO6391 from 'iso-639-1'
+import OpenAI from 'openai'
+
+import { DEFAULT_TRANSLATION_MODEL } from './modelOptions.js'
 
 function isoToFullName(isoCode: string, settings: any) {
-  const foundLanguage = settings.localization.locales.find((item: any) => item.code === isoCode)
+  const foundLanguage = settings?.localization?.locales?.find(
+    (item: any) => item.code === isoCode,
+  )
   if (foundLanguage && foundLanguage.label.length > 2) {
     return foundLanguage.label
   }
-  if (ISO6391.getName(isoCode)) return ISO6391.getName(isoCode)
+  if (ISO6391.getName(isoCode)) {return ISO6391.getName(isoCode)}
 
   return isoCode
 }
-function messagesMarkdown({ sourceLanguage, text, language, settings }: any) {
+function messagesMarkdown({ language, settings, sourceLanguage, text }: any) {
   return [
     {
-      role: 'system',
       content: `You will be provided with markdown in "${isoToFullName(
         sourceLanguage,
         settings,
@@ -21,18 +24,18 @@ function messagesMarkdown({ sourceLanguage, text, language, settings }: any) {
         language,
         settings,
       )}". Only return the translated markdown (mdx) and keep the structure.`,
+      role: 'system',
     },
     {
-      role: 'user',
       content: `${text}`,
+      role: 'user',
     },
   ]
 }
 
-function messagesString({ sourceLanguage, text, language, settings }: any) {
+function messagesString({ language, settings, sourceLanguage, text }: any) {
   return [
     {
-      role: 'system',
       content: `You will be provided with text in "${isoToFullName(
         sourceLanguage,
         settings,
@@ -40,18 +43,18 @@ function messagesString({ sourceLanguage, text, language, settings }: any) {
         language,
         settings,
       )}". Only return the translated text without anything else.`,
+      role: 'system',
     },
     {
-      role: 'user',
       content: `${text}`,
+      role: 'user',
     },
   ]
 }
 
-function messagesWithJson({ sourceLanguage, text, language, settings }: any) {
+function messagesWithJson({ language, settings, sourceLanguage, text }: any) {
   return [
     {
-      role: 'system',
       content: `You will be provided with lexical json structure in "${isoToFullName(
         sourceLanguage,
         settings,
@@ -59,18 +62,18 @@ function messagesWithJson({ sourceLanguage, text, language, settings }: any) {
         language,
         settings,
       )}". Keep the json structure. Make sure NOT to wrap your result in markdown.`,
+      role: 'system',
     },
     {
-      role: 'user',
       content: `${JSON.stringify(text /* , null, 2*/)}`,
+      role: 'user',
     },
   ]
 }
 
-function messagesWithJsonLexical({ sourceLanguage, text, language, settings }: any) {
+function messagesWithJsonLexical({ language, settings, sourceLanguage, text }: any) {
   return [
     {
-      role: 'system',
       content: `You will be provided with a flat object structure with long keys in the language "${isoToFullName(
         sourceLanguage,
         settings,
@@ -78,10 +81,11 @@ function messagesWithJsonLexical({ sourceLanguage, text, language, settings }: a
         language,
         settings,
       )}". Keep the flat json object structure with long dot seperated keys. Make sure NOT to wrap your result in markdown.`,
+      role: 'system',
     },
     {
-      role: 'user',
       content: `${JSON.stringify(text /* , null, 2*/)}`,
+      role: 'user',
     },
   ]
 }
@@ -110,6 +114,77 @@ function getMaxOutputTokensForModel(model: string) {
   }
 
   return 4096
+}
+
+const DEFAULT_RATE_LIMIT_RETRY_MS = 1000
+const DEFAULT_RATE_LIMIT_MAX_RETRIES = 5
+const MAX_RATE_LIMIT_RETRY_MS = 60 * 1000
+
+function getHeaderValue(headers: unknown, name: string): string | undefined {
+  if (!headers) {
+    return undefined
+  }
+
+  if (typeof (headers as Headers).get === 'function') {
+    return (headers as Headers).get(name) || undefined
+  }
+
+  const matchedHeader = Object.entries(headers as Record<string, unknown>).find(
+    ([key]) => key.toLowerCase() === name.toLowerCase(),
+  )
+
+  const value = matchedHeader?.[1]
+
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return String(value)
+  }
+
+  return undefined
+}
+
+function getRateLimitRetryDelayMs(error: { headers?: unknown }, retryCount: number) {
+  const retryAfterMsHeader = getHeaderValue(error.headers, 'retry-after-ms')
+  const retryAfterMs = retryAfterMsHeader ? Number.parseFloat(retryAfterMsHeader) : undefined
+
+  if (retryAfterMs !== undefined && Number.isFinite(retryAfterMs) && retryAfterMs >= 0) {
+    return Math.min(retryAfterMs, MAX_RATE_LIMIT_RETRY_MS)
+  }
+
+  const retryAfterHeader = getHeaderValue(error.headers, 'retry-after')
+
+  if (retryAfterHeader) {
+    const retryAfterSeconds = Number.parseFloat(retryAfterHeader)
+    const retryAfterDelayMs = Number.isFinite(retryAfterSeconds)
+      ? retryAfterSeconds * 1000
+      : Date.parse(retryAfterHeader) - Date.now()
+
+    if (Number.isFinite(retryAfterDelayMs) && retryAfterDelayMs >= 0) {
+      return Math.min(retryAfterDelayMs, MAX_RATE_LIMIT_RETRY_MS)
+    }
+  }
+
+  return Math.min(DEFAULT_RATE_LIMIT_RETRY_MS * 2 ** retryCount, MAX_RATE_LIMIT_RETRY_MS)
+}
+
+function parseJsonCompletion(content: null | string | undefined) {
+  if (!content) {
+    throw new Error('AI response was empty')
+  }
+
+  const trimmedContent = content.trim()
+  const withoutCodeFence = trimmedContent
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+
+  try {
+    return JSON.parse(withoutCodeFence)
+  } catch (_error) {
+    throw new Error('AI response was not valid JSON')
+  }
 }
 
 function generateUniqueKey(path: any) {
@@ -154,20 +229,12 @@ function reapplyText(
   }
 }
 
-interface TranslateTextOrObject {
-  text: any
-  language: string
-  sourceLanguage?: string
-  retryCount?: number
-  setting: any
-}
-
 export async function translateTextOrObject({
-  text,
   language,
-  sourceLanguage,
   retryCount = 0,
   settings,
+  sourceLanguage,
+  text,
 }: any) {
   function isTranslateNode(node: any, key: string) {
     return (key === 'text' && typeof node[key] === 'string') || key === 'name'
@@ -183,59 +250,60 @@ export async function translateTextOrObject({
     apiKey: process.env.OPENAI_API_KEY,
   })
   try {
-    let textMap = {}
+    const textMap = {}
 
     if (text?.root?.children) {
       extractAndCapitalizeText(text.root, ['root'], textMap, isTranslateNode)
     }
 
-    const { promptFunc = promptDefault, namespace, localization, ...restSettings }: any = settings
+    const { localization: _localization, namespace, promptFunc = promptDefault, ...restSettings }: any =
+      settings || {}
     const languageIso = language === 'se' ? 'sv' : language
 
     const promptMessage: any =
       typeof text === 'string' && text.length < 400
-        ? (messagesString({ sourceLanguage, text, language: languageIso, settings }) as any)
+        ? (messagesString({ language: languageIso, settings, sourceLanguage, text }) as any)
         : typeof text === 'string'
-        ? (messagesMarkdown({ sourceLanguage, text, language: languageIso, settings }) as any)
+        ? (messagesMarkdown({ language: languageIso, settings, sourceLanguage, text }) as any)
         : text?.root?.children
         ? (messagesWithJsonLexical({
-            sourceLanguage,
-            text: textMap,
             language: languageIso,
             settings,
+            sourceLanguage,
+            text: textMap,
           }) as any)
-        : (messagesWithJson({ sourceLanguage, text, language: languageIso, settings }) as any)
+        : (messagesWithJson({ language: languageIso, settings, sourceLanguage, text }) as any)
 
     const finalPrompt = promptFunc({
+      language,
       messages: promptMessage,
       namespace,
-      sourceLanguage,
-      language,
       settings,
+      sourceLanguage,
     })
 
-    const model = restSettings.model || 'gpt-4o'
-    const usesCompletionTokens = /^(gpt-5|o[1-9])/i.test(model)
+    const model = restSettings.model || DEFAULT_TRANSLATION_MODEL
+    const usesCompletionTokens = /^(?:gpt-5|o[1-9])/i.test(model)
     const modelMaxOutputTokens = getMaxOutputTokensForModel(model)
     const {
-      max_tokens: maxTokensFromSettings,
+      frequency_penalty: frequencyPenaltyFromSettings,
       max_completion_tokens: maxCompletionTokensFromSettings,
+      max_tokens: maxTokensFromSettings,
+      presence_penalty: presencePenaltyFromSettings,
       temperature: temperatureFromSettings,
       top_p: topPFromSettings,
-      frequency_penalty: frequencyPenaltyFromSettings,
-      presence_penalty: presencePenaltyFromSettings,
       ...restCompletionSettings
     } = restSettings
 
     const chatCompletion = await openai.chat.completions.create({
-      model, // default remains gpt-4o unless overridden via settings.model
       messages: finalPrompt,
+      model,
       ...(!usesCompletionTokens
         ? {
-            temperature: temperatureFromSettings ?? 0,
-            top_p: topPFromSettings ?? 1,
             frequency_penalty: frequencyPenaltyFromSettings ?? 0,
             presence_penalty: presencePenaltyFromSettings ?? 0,
+            temperature: temperatureFromSettings ?? 0,
+            top_p: topPFromSettings ?? 1,
           }
         : {}),
       ...(usesCompletionTokens
@@ -268,7 +336,7 @@ export async function translateTextOrObject({
       reapplyText(
         newText.root,
         ['root'],
-        JSON.parse(chatCompletion.choices[0].message.content as string),
+        parseJsonCompletion(chatCompletion.choices[0].message.content),
         isTranslateNode,
       )
       return newText
@@ -276,32 +344,42 @@ export async function translateTextOrObject({
 
     const newItemResult =
       typeof text !== 'string'
-        ? JSON.parse(chatCompletion.choices[0].message.content as string)
+        ? parseJsonCompletion(chatCompletion.choices[0].message.content)
         : chatCompletion.choices[0].message.content
 
     return newItemResult
   } catch (error: any) {
     if (error.status === 429) {
+      const maxRetries = settings?.maxRetries ?? DEFAULT_RATE_LIMIT_MAX_RETRIES
+
+      if (retryCount >= maxRetries) {
+        throw new Error(`OpenAI rate limit retry limit reached after ${retryCount} retries`)
+      }
+
+      const retryAfterMs = getRateLimitRetryDelayMs(error, retryCount)
+
       console.log(
-        `Too many requests. Retry after ${error.headers['retry-after-ms']}ms. Retry count: ${retryCount}`,
+        `Too many requests. Retry after ${retryAfterMs}ms. Retry count: ${retryCount}`,
       )
 
-      await new Promise(resolve => setTimeout(resolve, error.headers['retry-after-ms']))
+      await new Promise(resolve => setTimeout(resolve, retryAfterMs))
       const newResult: any = await translateTextOrObject({
-        text,
         language,
-        sourceLanguage,
         retryCount: retryCount + 1,
         settings,
+        sourceLanguage,
+        text,
       })
 
       return newResult
-    } else {
-      console.log(
-        'Could not be translated',
-        error /* , chatCompletion.choices[0].message.content */,
-      )
     }
+
+    console.log(
+      'Could not be translated',
+      error /* , chatCompletion.choices[0].message.content */,
+    )
+
+    throw error
   }
 }
 

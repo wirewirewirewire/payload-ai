@@ -1,11 +1,9 @@
-import type { Access } from 'payload'
-
 const getCollectionSlug = (req: any): string | undefined => {
   const fromCollection = req?.collection?.config?.slug
   const fromRouteParams = req?.routeParams?.collection
 
-  if (typeof fromCollection === 'string') return fromCollection
-  if (typeof fromRouteParams === 'string') return fromRouteParams
+  if (typeof fromCollection === 'string') {return fromCollection}
+  if (typeof fromRouteParams === 'string') {return fromRouteParams}
 
   const pathname = req?.pathname || req?.url || ''
   const pathnameMatch = typeof pathname === 'string' ? pathname.match(/\/api\/([^/]+)\//) : null
@@ -22,7 +20,7 @@ export const validateAccess = (req: any, pluginOptions: any) => {
 
   const accessControl = collectionOptions.access || collectionConfig?.access?.update
 
-  if (typeof accessControl !== 'function') return true
+  if (typeof accessControl !== 'function') {return Boolean(req?.user)}
 
   return accessControl({ req })
 }

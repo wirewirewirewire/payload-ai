@@ -1,0 +1,136 @@
+.ai-translations-backfill {
+  padding: 0 var(--gutter-h);
+  margin-bottom: var(--base);
+}
+
+.ai-translations-backfill__modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-translations-backfill__backdrop {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+.ai-translations-backfill__backdrop:disabled {
+  cursor: not-allowed;
+}
+
+.ai-translations-backfill__dialog {
+  position: relative;
+  width: min(720px, calc(100% - var(--gutter-h) * 2));
+  max-height: calc(100vh - var(--base) * 4);
+  overflow: auto;
+  padding: calc(var(--base) * 1.25);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-s);
+  background: var(--theme-elevation-0);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.ai-translations-backfill__content {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.75);
+}
+
+.ai-translations-backfill__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--base);
+}
+
+.ai-translations-backfill__header h2,
+.ai-translations-backfill__description,
+.ai-translations-backfill__status-message,
+.ai-translations-backfill__result p {
+  margin: 0;
+}
+
+.ai-translations-backfill__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--base) * 1.35);
+  height: calc(var(--base) * 1.35);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-s);
+  background: var(--theme-elevation-50);
+  color: var(--theme-elevation-800);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.ai-translations-backfill__close:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ai-translations-backfill__description,
+.ai-translations-backfill__status-message {
+  color: var(--theme-elevation-700);
+}
+
+.ai-translations-backfill__result {
+  display: grid;
+  gap: calc(var(--base) * 0.35);
+  padding: calc(var(--base) * 0.75);
+  border: 1px solid var(--theme-elevation-100);
+  border-radius: var(--style-radius-s);
+  background: var(--theme-elevation-50);
+}
+
+.ai-translations-backfill__result ul {
+  display: grid;
+  gap: calc(var(--base) * 0.25);
+  margin: 0;
+  padding-left: var(--base);
+}
+
+.ai-translations-backfill__field {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.25);
+}
+
+.ai-translations-backfill__label {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ai-translations-backfill__radio-group {
+  display: grid;
+  gap: calc(var(--base) * 0.25);
+}
+
+.ai-translations-backfill__radio-option {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--base) * 0.35);
+  font-size: 0.9rem;
+  color: var(--theme-elevation-900);
+  cursor: pointer;
+}
+
+.ai-translations-backfill__radio-option input[type='radio'] {
+  margin: 0;
+  accent-color: var(--theme-success-500);
+}
+
+.ai-translations-backfill__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--base) * 0.5);
+}

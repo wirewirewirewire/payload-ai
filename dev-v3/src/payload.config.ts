@@ -6,9 +6,9 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 import { aiTranslatorPlugin as aiTranslatorPluginImported } from '../../dist/index.js'
 
-import { Users } from './collections/Users'
-import { Media } from './collections/Media'
-import { Random } from './collections/Random'
+import { Users } from './collections/Users.js'
+import { Media } from './collections/Media.js'
+import { Random } from './collections/Random.js'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)

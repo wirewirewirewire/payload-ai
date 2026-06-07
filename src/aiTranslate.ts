@@ -1,26 +1,28 @@
-import OpenAI from 'openai'
 import type { CollectionAfterChangeHook, FieldHook } from 'payload'
-import { deepCompareTranslateAndMerge } from './deepCompareAndMerge'
+
+import OpenAI from 'openai'
+
+import { deepCompareTranslateAndMerge } from './deepCompareAndMerge.js'
 
 const aiTranslateHook =
   (
     {
-      collectionOptions,
       collection,
+      collectionOptions,
       pluginOptions,
-    }: { collectionOptions: any; collection: object; pluginOptions: any },
+    }: { collection: object; collectionOptions: any; pluginOptions: any },
     fallback?: string,
   ): CollectionAfterChangeHook =>
-  async ({ doc, req, previousDoc, context, collection }) => {
+  async ({ collection, context, doc, previousDoc, req }) => {
     const settings = pluginOptions.collections?.[collection.slug]?.settings
 
     return await translateCollection({
-      doc,
-      req,
-      previousDoc,
-      context,
       collection,
       collectionOptions,
+      context,
+      doc,
+      previousDoc,
+      req,
       settings,
     })
   }
@@ -28,17 +30,17 @@ const aiTranslateHook =
 export default aiTranslateHook
 
 export async function translateCollection({
-  req,
-  doc,
-  collection,
-  previousDoc,
-  context,
-  collectionOptions,
-  onlyMissing,
   codes,
+  collection,
+  collectionOptions,
+  context,
+  doc,
+  onlyMissing,
+  onProgress,
+  previousDoc,
+  req,
   settings,
   sourceLanguage,
-  onProgress,
 }: any) {
   const localization = req?.payload?.config?.localization
   const previousDocument = previousDoc || {}
@@ -58,16 +60,16 @@ export async function translateCollection({
     localCodes[0] ||
     req?.locale
 
-  if (context.triggerAfterChange === false /* || req.locale !== sourceLanguageI */) return
+  if (context.triggerAfterChange === false /* || req.locale !== sourceLanguageI */) {return}
 
-  if (!Array.isArray(localCodes) || localCodes.length < 2 || !sourceLanguageI) return
+  if (!Array.isArray(localCodes) || localCodes.length < 2 || !sourceLanguageI) {return}
 
   const targetLanguages = localCodes.filter(
     targetLanguage =>
       targetLanguage !== sourceLanguageI && (!codes || codes.includes(targetLanguage)),
   )
 
-  if (!targetLanguages.length) return
+  if (!targetLanguages.length) {return}
 
   if (typeof onProgress === 'function') {
     for (const targetLanguage of targetLanguages) {
@@ -75,12 +77,12 @@ export async function translateCollection({
 
       try {
         const targetDoc = await req.payload.findByID({
-          collection: collection.slug,
           id: doc.id,
-          locale: targetLanguage,
+          collection: collection.slug,
+          depth: 0,
           fallbackLocale: false,
           limit: 0,
-          depth: 0,
+          locale: targetLanguage,
         })
 
         const targetDocWithTranslation = await deepCompareTranslateAndMerge(
@@ -92,30 +94,30 @@ export async function translateCollection({
           previousDocument.id ? 'update' : 'create',
           onlyMissing,
           sourceLanguageI,
-          { ...settings, namespace: doc?.namespace, localization },
+          { ...settings, localization, namespace: doc?.namespace },
         )
 
-        const { id, _status, updatedAt, createdAt, publishedDate, ...dataNew } =
+        const { id, _status, createdAt, publishedDate, updatedAt, ...dataNew } =
           targetDocWithTranslation
 
         await req.payload.update({
-          collection: collection.slug,
           id: doc.id,
-          data: dataNew,
-          locale: targetLanguage,
-          limit: 1,
-          depth: 0,
+          collection: collection.slug,
           context: {
             triggerAfterChange: false,
           },
+          data: dataNew,
+          depth: 0,
+          limit: 1,
+          locale: targetLanguage,
         })
 
         await onProgress({ language: targetLanguage, status: 'completed' })
       } catch (error: any) {
         await onProgress({
+          error: error?.message || 'Translation failed',
           language: targetLanguage,
           status: 'failed',
-          error: error?.message || 'Translation failed',
         })
         throw error
       }
@@ -126,12 +128,12 @@ export async function translateCollection({
 
   const translationPromises = targetLanguages.map(async (tL: string) => {
     const targetDoc = await req.payload.findByID({
-      collection: collection.slug,
       id: doc.id,
-      locale: tL,
+      collection: collection.slug,
+      depth: 0,
       fallbackLocale: false,
       limit: 0,
-      depth: 0,
+      locale: tL,
     })
 
     const targetDocWithTranslation = await deepCompareTranslateAndMerge(
@@ -143,10 +145,10 @@ export async function translateCollection({
       previousDocument.id ? 'update' : 'create',
       onlyMissing,
       sourceLanguageI,
-      { ...settings, namespace: doc?.namespace, localization },
+      { ...settings, localization, namespace: doc?.namespace },
     )
 
-    const { id, _status, updatedAt, createdAt, publishedDate, ...dataNew } =
+    const { id, _status, createdAt, publishedDate, updatedAt, ...dataNew } =
       targetDocWithTranslation
 
     return { dataNew, tL }
@@ -157,15 +159,15 @@ export async function translateCollection({
   for (const translatedContent of translationResults) {
     const updatedLanguage = await req.payload.update({
       //req,
-      collection: collection.slug,
       id: doc.id,
-      data: translatedContent.dataNew,
-      locale: translatedContent.tL,
-      limit: 1,
-      depth: 0,
+      collection: collection.slug,
       context: {
         triggerAfterChange: false,
       },
+      data: translatedContent.dataNew,
+      depth: 0,
+      limit: 1,
+      locale: translatedContent.tL,
     })
   }
 }

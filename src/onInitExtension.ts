@@ -1,6 +1,6 @@
 import type { Payload } from 'payload'
 
-import type { PluginTypes } from './types'
+import type { PluginTypes } from './types.js'
 
 export const onInitExtension = (pluginOptions: PluginTypes, payload: Payload): void => {
   try {

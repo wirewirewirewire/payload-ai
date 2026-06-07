@@ -1,44 +1,24 @@
 import type { Plugin } from 'payload'
-import fs from 'fs'
-import path from 'path'
 
-import { onInitExtension } from './onInitExtension'
-import type { PluginTypes } from './types'
-import stringTranslations from './stringTranslations'
-import { createTranslatorHandler } from './handleTranslate'
-import { generateTextHandler } from './generateText'
-import aiCaptionHook from './aiCaption'
+import type { PluginTypes } from './types.js'
+
+import aiCaptionHook from './aiCaption.js'
+import { generateTextHandler } from './generateText.js'
+import { createTranslatorHandler } from './handleTranslate.js'
+import { onInitExtension } from './onInitExtension.js'
+import stringTranslations from './stringTranslations.js'
+
+const TRANSLATOR_COMPONENT_PATH = 'payload-ai/rsc#Translator'
+const TRANSLATIONS_BACKFILL_COMPONENT_PATH = 'payload-ai/rsc#TranslationsBackfill'
 
 export const aiTranslatorPlugin =
-  (pluginOptions: PluginTypes): Plugin =>
+  (pluginOptions: PluginTypes = {}): Plugin =>
   incomingConfig => {
-    const { collections: allCollectionOptions } = pluginOptions
-    let translatorComponentAbsolutePath = path.resolve(
-      __dirname,
-      './components/Translator/index.js',
-    )
-    if (translatorComponentAbsolutePath.includes(`${path.sep}.next${path.sep}`)) {
-      const fromRepoRootDist = path.resolve(process.cwd(), '../dist/components/Translator/index.js')
-      const fromNodeModulesDist = path.resolve(
-        process.cwd(),
-        'node_modules/payload-ai/dist/components/Translator/index.js',
-      )
-
-      if (fs.existsSync(fromRepoRootDist)) {
-        translatorComponentAbsolutePath = fromRepoRootDist
-      } else if (fs.existsSync(fromNodeModulesDist)) {
-        translatorComponentAbsolutePath = fromNodeModulesDist
-      }
+    if (pluginOptions.enabled === false) {
+      return incomingConfig
     }
-    const adminImportMapBaseDir = incomingConfig.admin?.importMap?.baseDir
-    const translatorComponentPathFromBaseDir = adminImportMapBaseDir
-      ? path.relative(adminImportMapBaseDir, translatorComponentAbsolutePath)
-      : translatorComponentAbsolutePath
-    const translatorComponentPath = `${
-      translatorComponentPathFromBaseDir.startsWith('.')
-        ? translatorComponentPathFromBaseDir
-        : `./${translatorComponentPathFromBaseDir}`
-    }#Translator`
+
+    const allCollectionOptions = pluginOptions.collections || {}
 
     const localizationConfig =
       typeof incomingConfig.localization === 'object' && incomingConfig.localization
@@ -74,7 +54,7 @@ export const aiTranslatorPlugin =
                         : undefined
                     const firstStringLabel = Object.values(rawLabel).find(
                       value => typeof value === 'string',
-                    ) as string | undefined
+                    )
 
                     label =
                       (typeof defaultLocaleLabel === 'string'
@@ -93,10 +73,16 @@ export const aiTranslatorPlugin =
       : undefined
 
     const translatorComponent = {
-      path: translatorComponentPath,
       clientProps: {
         localization: sanitizedLocalization,
       },
+      path: TRANSLATOR_COMPONENT_PATH,
+    }
+    const translationsBackfillComponent = {
+      clientProps: {
+        localization: sanitizedLocalization,
+      },
+      path: TRANSLATIONS_BACKFILL_COMPONENT_PATH,
     }
 
     const withTranslatorControl = (collectionConfig: any) => ({
@@ -116,11 +102,11 @@ export const aiTranslatorPlugin =
       },
     })
 
-    let config = { ...incomingConfig }
+    const config = { ...incomingConfig }
 
     config.collections = (config.collections || []).map(existingCollection => {
       const collectionOptions = {}
-      if (existingCollection.slug !== 'media') return existingCollection
+      if (existingCollection.slug !== 'media') {return existingCollection}
 
       return {
         ...existingCollection,
@@ -137,7 +123,7 @@ export const aiTranslatorPlugin =
           ...(existingCollection.hooks || {}),
           afterChange: [
             ...(existingCollection.hooks?.afterChange || []),
-            aiCaptionHook({ collectionOptions, pluginOptions, collection: existingCollection }),
+            aiCaptionHook({ collection: existingCollection, collectionOptions, pluginOptions }),
           ],
         },
       }
@@ -146,7 +132,7 @@ export const aiTranslatorPlugin =
     config.collections = (config.collections || []).map(existingCollection => {
       const collectionOptions = allCollectionOptions[existingCollection.slug]
 
-      if (!collectionOptions) return existingCollection
+      if (!collectionOptions) {return existingCollection}
 
       return {
         ...withTranslatorControl(existingCollection),
@@ -154,11 +140,12 @@ export const aiTranslatorPlugin =
         endpoints: [
           ...(existingCollection.endpoints || []),
           {
-            path: '/translate',
-            method: 'post',
             handler: createTranslatorHandler(pluginOptions),
+            method: 'post',
+            path: '/translate',
           },
         ],
+        fields: [...(existingCollection.fields || [])],
         hooks: {
           ...(existingCollection.hooks || {}),
           afterChange: [
@@ -167,20 +154,29 @@ export const aiTranslatorPlugin =
             // getBeforeChangeHook({ adapter, collection: existingCollection }),
           ],
         },
-        fields: [...(existingCollection.fields || [])],
       }
     })
 
-    // If the plugin is disabled, return the config without modifying it
-    // The order of this check is important, we still want any webpack extensions to be applied even if the plugin is disabled
-    if (pluginOptions.enabled === false) {
-      return config
-    }
+    if (pluginOptions.stringTranslation?.enabled !== false) {
+      const translationsCollection = withTranslatorControl(stringTranslations(pluginOptions))
 
-    config.collections = [
-      ...(config.collections || []),
-      withTranslatorControl(stringTranslations(pluginOptions)),
-    ]
+      config.collections = [
+        ...(config.collections || []),
+        {
+          ...translationsCollection,
+          admin: {
+            ...(translationsCollection.admin || {}),
+            components: {
+              ...(translationsCollection.admin?.components || {}),
+              beforeList: [
+                translationsBackfillComponent,
+                ...(translationsCollection.admin?.components?.beforeList || []),
+              ],
+            },
+          },
+        },
+      ]
+    }
 
     config.globals = [...(config.globals || [])]
 
@@ -188,17 +184,19 @@ export const aiTranslatorPlugin =
       ...(config.hooks || {}),
     }
 
-    config.endpoints = [
-      ...(config.endpoints || []),
-      {
-        path: '/generate-text',
-        method: 'post',
-        handler: generateTextHandler(pluginOptions),
-      },
-    ]
+    if (pluginOptions.generateText?.enabled !== false) {
+      config.endpoints = [
+        ...(config.endpoints || []),
+        {
+          handler: generateTextHandler(pluginOptions),
+          method: 'post',
+          path: '/generate-text',
+        },
+      ]
+    }
 
     config.onInit = async payload => {
-      if (incomingConfig.onInit) await incomingConfig.onInit(payload)
+      if (incomingConfig.onInit) {await incomingConfig.onInit(payload)}
       // Add additional onInit code by using the onInitExtension function
       onInitExtension(pluginOptions, payload)
     }
